@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Food Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif;
+         min-height: 100vh; padding: 1rem; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; letter-spacing: .05em; }
+  .date { color: #64748b; font-size: .85rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem;
+          border: 1px solid #334155; margin-bottom: .75rem; }
+  h2 { color: #7dd3fc; font-size: .95rem; margin-bottom: .75rem; }
+  .nutrients { display: flex; flex-direction: column; gap: .6rem; }
+  .nutrient-row { display: flex; flex-direction: column; gap: .2rem; }
+  .nutrient-label { display: flex; justify-content: space-between;
+                    font-size: .82rem; color: #94a3b8; }
+  .nutrient-label span:last-child { color: #e2e8f0; font-weight: 600; }
+  .bar-bg { background: #0f172a; border-radius: 99px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width .4s ease; }
+  .bar-ok   { background: #22c55e; }
+  .bar-warn { background: #f59e0b; }
+  .bar-over { background: #ef4444; }
+  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  th { text-align: left; color: #64748b; font-weight: 600; padding: .4rem .3rem;
+       border-bottom: 1px solid #334155; }
+  td { padding: .45rem .3rem; border-bottom: 1px solid #1e293b; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .food-name { color: #e2e8f0; font-weight: 500; }
+  .food-meta { color: #64748b; font-size: .72rem; }
+  .liked-yes { color: #4ade80; }
+  .liked-no  { color: #f87171; }
+  .btn-del { background: none; border: none; color: #475569; cursor: pointer;
+             font-size: .85rem; padding: .1rem .3rem; }
+  .btn-del:hover { color: #f87171; }
+  .history-row { display: flex; justify-content: space-between; align-items: center;
+                 font-size: .8rem; padding: .25rem 0; border-bottom: 1px solid #0f172a; }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { color: #94a3b8; }
+  .history-cal  { color: #e2e8f0; font-weight: 600; }
+  .history-pct  { color: #64748b; font-size: .72rem; }
+  .refresh-bar  { display: flex; align-items: center; gap: .75rem;
+                  margin-bottom: 1rem; font-size: .8rem; color: #64748b; }
+  .refresh-bar button { border: none; border-radius: 6px; padding: .3rem .7rem;
+                        font-size: .78rem; background: #1e293b; color: #94a3b8;
+                        border: 1px solid #334155; cursor: pointer; }
+  .empty { color: #475569; font-size: .85rem; text-align: center; padding: 1rem 0; }
+  .gi-badge { display: inline-block; font-size: .68rem; padding: .1rem .35rem;
+              border-radius: 4px; font-weight: 600; }
+  .gi-low  { background: #14532d; color: #4ade80; }
+  .gi-med  { background: #713f12; color: #fbbf24; }
+  .gi-high { background: #7f1d1d; color: #f87171; }
+  .gi-none { background: #1e293b; color: #475569; }
+</style>
+</head>
+<body>
+
+<h1>Food Tracker</h1>
+<p class="date" id="date-label">{{ date }}</p>
+
+<div class="refresh-bar">
+  <span id="last-refresh">—</span>
+  <button onclick="fetchToday()">↻ Refresh</button>
+  <a href="/food/api/cooking" target="_blank" style="color:#38bdf8;font-size:.78rem;text-decoration:none;">COOKING.md</a>
+</div>
+
+<!-- Nutrient progress bars -->
+<div class="card">
+  <h2>Today's Nutrition</h2>
+  <div class="nutrients" id="nutrients">
+    {% set limit = limits %}
+    {% for key, label, unit, dec in [
+        ('calories','Calories','kcal',0),
+        ('sat_fat_g','Sat Fat','g',1),
+        ('sodium_mg','Sodium','mg',0),
+        ('carbs_g','Carbs','g',0),
+        ('sugar_g','Sugar','g',0)
+    ] %}
+    {% set actual = totals[key] | float %}
+    {% set lim    = limit[key]  | float %}
+    {% set pct    = [actual / lim * 100, 100] | min if lim else 0 %}
+    {% set bar_class = 'bar-over' if pct >= 100 else ('bar-warn' if pct >= 80 else 'bar-ok') %}
+    <div class="nutrient-row" id="nr-{{ key }}">
+      <div class="nutrient-label">
+        <span>{{ label }}</span>
+        <span>{{ "%.{}f".format(dec) | format(actual) }} / {{ lim | int }} {{ unit }}</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill {{ bar_class }}" style="width:{{ pct }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Today's food log -->
+<div class="card">
+  <h2>Today's Log</h2>
+  <div id="log-table">
+  {% if log %}
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th><th>Food</th><th>kcal</th><th>GI</th><th>Sat fat</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="log-body">
+    {% for row in log %}
+    <tr id="row-{{ row.id }}">
+      <td class="food-meta">{{ row.logged_at[11:16] }}</td>
+      <td>
+        <div class="food-name">{{ row.food_name }}</div>
+        {% if row.grams_eaten %}<div class="food-meta">{{ "%.0f" | format(row.grams_eaten) }}g</div>{% endif %}
+        {% if row.liked == 1 %}<span class="liked-yes">👍</span>
+        {% elif row.liked == 0 %}<span class="liked-no">👎</span>{% endif %}
+      </td>
+      <td>{{ "%.0f" | format(row.calories or 0) }}</td>
+      <td>
+        {% if row.glycemic_index is not none %}
+          {% set gi = row.glycemic_index | float %}
+          {% set gi_class = 'gi-high' if gi >= 70 else ('gi-med' if gi >= 56 else 'gi-low') %}
+          <span class="gi-badge {{ gi_class }}">{{ "%.0f" | format(gi) }}</span>
+        {% else %}
+          <span class="gi-badge gi-none">—</span>
+        {% endif %}
+      </td>
+      <td>{{ "%.1f" | format(row.sat_fat_g or 0) }}g</td>
+      <td>
+        <button class="btn-del" onclick="deleteEntry({{ row.id }})" title="Delete">✕</button>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Nothing logged today. Tell the bot what you ate!</div>
+  {% endif %}
+  </div>
+</div>
+
+<!-- 7-day history -->
+<div class="card">
+  <h2>7-Day History</h2>
+  {% if history %}
+  <div id="history-list">
+  {% for r in history %}
+  {% set pct = (r.calories / limits.calories * 100) | int %}
+  <div class="history-row">
+    <span class="history-date">{{ r.date }}</span>
+    <span class="history-cal">{{ "%.0f" | format(r.calories) }} kcal</span>
+    <span class="history-pct">{{ pct }}%</span>
+  </div>
+  {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">No history yet.</div>
+  {% endif %}
+</div>
+
+<script>
+async function fetchToday() {
+  try {
+    const r = await fetch('/food/api/today');
+    const d = await r.json();
+    updateNutrients(d.totals, d.limits);
+    document.getElementById('last-refresh').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+  } catch(e) {}
+}
+
+function updateNutrients(totals, limits) {
+  const fields = [
+    ['calories', 'Calories', 'kcal', 0],
+    ['sat_fat_g', 'Sat Fat', 'g', 1],
+    ['sodium_mg', 'Sodium', 'mg', 0],
+    ['carbs_g', 'Carbs', 'g', 0],
+    ['sugar_g', 'Sugar', 'g', 0],
+  ];
+  for (const [key, label, unit, dec] of fields) {
+    const actual = totals[key] || 0;
+    const lim = limits[key] || 1;
+    const pct = Math.min(actual / lim * 100, 100);
+    const nr = document.getElementById('nr-' + key);
+    if (!nr) continue;
+    const bar = nr.querySelector('.bar-fill');
+    bar.style.width = pct + '%';
+    bar.className = 'bar-fill ' + (pct >= 100 ? 'bar-over' : pct >= 80 ? 'bar-warn' : 'bar-ok');
+    const labelSpan = nr.querySelectorAll('.nutrient-label span')[1];
+    labelSpan.textContent = actual.toFixed(dec) + ' / ' + lim + ' ' + unit;
+  }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  await fetch('/food/api/delete/' + id, {method: 'POST'});
+  const row = document.getElementById('row-' + id);
+  if (row) row.remove();
+  fetchToday();
+}
+
+setInterval(fetchToday, 60000);
+</script>
+</body>
+</html>
