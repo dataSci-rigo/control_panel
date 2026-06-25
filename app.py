@@ -25,11 +25,18 @@ try:
 except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("Food blueprint unavailable: %s", _e)
+
+try:
+    from plants_routes import plants_bp
+    app.register_blueprint(plants_bp, url_prefix="/plants")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Plants blueprint unavailable: %s", _e)
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 SERVICES = [
     {"id": "arcade",    "label": "Arcade",             "path": "/arcade/"},
-    {"id": "plants",    "label": "Plants Tracker",      "path": None},
+    {"id": "plants",    "label": "Plants Tracker",      "path": "/plants/"},
     {"id": "todo",      "label": "Accountability Bot",  "path": None},
     {"id": "todo-ping", "label": "Todo Pinger",         "path": None},
     {"id": "adhd-bot",  "label": "ADHD Bot",            "path": None},
