@@ -41,7 +41,8 @@ SERVICES = [
     {"id": "todo-ping", "label": "Todo Pinger",         "path": None},
     {"id": "adhd-bot",  "label": "ADHD Bot",            "path": None},
     {"id": "food",      "label": "Food / Nutrition",    "path": "/food/"},
-    {"id": "ai-prep",   "label": "Learn Bot (Telegram)", "path": None},
+    {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
+    {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
 ]
 
 
