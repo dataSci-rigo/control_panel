@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Fridge</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif; padding: 1rem; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; }
+  .subtitle { color: #64748b; font-size: .82rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem; border: 1px solid #334155; margin-bottom: .75rem; }
+  h2 { color: #7dd3fc; font-size: .95rem; margin-bottom: .75rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th { text-align: left; color: #64748b; font-weight: 600; padding: .4rem .3rem; border-bottom: 1px solid #334155; }
+  td { padding: .45rem .3rem; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  input[type=number], input[type=text], select {
+    background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; padding: .3rem .5rem; font-size: .8rem; width: 100%;
+  }
+  .qty-input { width: 70px; }
+  button { border: none; border-radius: 6px; padding: .35rem .7rem; font-size: .78rem;
+           font-weight: 600; cursor: pointer; }
+  .btn-save   { background: #1e3a5f; color: #7dd3fc; }
+  .btn-del    { background: none; color: #475569; font-size: .85rem; }
+  .btn-del:hover { color: #f87171; }
+  .btn-add    { background: #166534; color: #4ade80; margin-top: .5rem; padding: .45rem 1rem; }
+  .add-form   { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; margin-top: .75rem; }
+  .add-form > div { display: flex; flex-direction: column; gap: .25rem; font-size: .75rem; color: #64748b; }
+  .add-form input, .add-form select { width: auto; }
+  .log-row { font-size: .75rem; display: flex; justify-content: space-between; padding: .2rem 0; color: #94a3b8; border-bottom: 1px solid #0f172a; }
+  .log-action-add    { color: #4ade80; }
+  .log-action-eat    { color: #fbbf24; }
+  .log-action-remove { color: #f87171; }
+  .empty { color: #475569; text-align: center; padding: 1rem; font-size: .85rem; }
+  .refresh-bar { display: flex; gap: .75rem; align-items: center; margin-bottom: 1rem; font-size: .8rem; color: #64748b; }
+  .refresh-bar button { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+</style>
+</head>
+<body>
+
+<h1>🧊 Fridge</h1>
+<p class="subtitle" id="last-refresh">—</p>
+
+<div class="refresh-bar">
+  <button onclick="loadFridge()">↻ Refresh</button>
+</div>
+
+<!-- Fridge contents -->
+<div class="card">
+  <h2>Current Inventory</h2>
+  <div id="fridge-content">
+    {% if fridge %}
+    <table>
+      <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th></th></tr></thead>
+      <tbody id="fridge-body">
+      {% for item in fridge %}
+      <tr id="item-{{ loop.index }}">
+        <td>{{ item.item_name }}</td>
+        <td>
+          <input class="qty-input" type="number" min="0" step="any"
+                 value="{{ '%.0f' | format(item.quantity) }}"
+                 id="qty-{{ loop.index }}" onchange="saveQty({{ loop.index }}, {{ item.id if item.id is defined else 0 }})">
+        </td>
+        <td style="color:#64748b">{{ item.unit }}</td>
+        <td><button class="btn-del" onclick="deleteItem({{ item.id if item.id is defined else 0 }}, '{{ item.item_name }}')">✕</button></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Fridge is empty. Add something below.</div>
+    {% endif %}
+  </div>
+
+  <!-- Add item form -->
+  <div class="add-form">
+    <div><span>Item</span><input type="text" id="add-name" placeholder="chicken breast"></div>
+    <div><span>Qty</span><input type="number" id="add-qty" style="width:80px" placeholder="500" min="0" step="any"></div>
+    <div>
+      <span>Unit</span>
+      <select id="add-unit">
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="ml">ml</option>
+        <option value="count">count</option>
+        <option value="lbs">lbs</option>
+        <option value="oz">oz</option>
+      </select>
+    </div>
+    <button class="btn-add" onclick="addItem()">+ Add</button>
+  </div>
+</div>
+
+<!-- Recent log -->
+<div class="card">
+  <h2>Recent Activity</h2>
+  {% if log %}
+  <div>
+  {% for entry in log %}
+  <div class="log-row">
+    <span>
+      <span class="log-action-{{ entry.action }}">{{ entry.action }}</span>
+      {{ entry.quantity | int }} {{ entry.unit }} {{ entry.item_name }}
+    </span>
+    <span>{{ entry.logged_at[5:16] | replace('T',' ') }}</span>
+  </div>
+  {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">No activity yet.</div>
+  {% endif %}
+</div>
+
+<script>
+// We need item IDs from the DB — re-fetch via API for live operations
+let fridgeData = [];
+
+async function loadFridge() {
+  const r = await fetch('/mealprep/api/fridge');
+  fridgeData = await r.json();
+  renderFridge();
+  document.getElementById('last-refresh').textContent =
+    'Updated ' + new Date().toLocaleTimeString();
+}
+
+function renderFridge() {
+  const tbody = document.getElementById('fridge-body');
+  if (!tbody) return;
+  tbody.innerHTML = fridgeData.map((item, i) => `
+    <tr id="item-${item.id}">
+      <td>${item.item_name}</td>
+      <td><input class="qty-input" type="number" min="0" step="any"
+                 value="${Math.round(item.quantity)}"
+                 onchange="saveQtyById(${item.id}, this.value)"></td>
+      <td style="color:#64748b">${item.unit}</td>
+      <td><button class="btn-del" onclick="deleteItem(${item.id}, '${item.item_name}')">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+async function saveQtyById(id, qty) {
+  await fetch('/mealprep/api/update/' + id, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({quantity: parseFloat(qty)})
+  });
+}
+
+async function deleteItem(id, name) {
+  if (!confirm('Remove ' + name + ' from fridge?')) return;
+  await fetch('/mealprep/api/delete/' + id, {method: 'POST'});
+  const row = document.getElementById('item-' + id);
+  if (row) row.remove();
+  await loadFridge();
+}
+
+async function addItem() {
+  const name = document.getElementById('add-name').value.trim();
+  const qty  = parseFloat(document.getElementById('add-qty').value);
+  const unit = document.getElementById('add-unit').value;
+  if (!name || isNaN(qty) || qty <= 0) { alert('Name and quantity required.'); return; }
+  await fetch('/mealprep/api/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, quantity: qty, unit})
+  });
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-qty').value  = '';
+  await loadFridge();
+}
+
+loadFridge();
+</script>
+</body>
+</html>

@@ -32,17 +32,47 @@ try:
 except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("Plants blueprint unavailable: %s", _e)
+
+try:
+    from mealprep_routes import mealprep_bp
+    app.register_blueprint(mealprep_bp, url_prefix="/mealprep")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Mealprep blueprint unavailable: %s", _e)
+
+try:
+    from workout_routes import workout_bp
+    app.register_blueprint(workout_bp, url_prefix="/workout")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Workout blueprint unavailable: %s", _e)
+
+try:
+    from meds_routes import meds_bp
+    app.register_blueprint(meds_bp, url_prefix="/meds")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Meds blueprint unavailable: %s", _e)
+
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 SERVICES = [
-    {"id": "arcade",    "label": "Arcade",             "path": "/arcade/"},
-    {"id": "plants",    "label": "Plants Tracker",      "path": "/plants/"},
-    {"id": "todo",      "label": "Accountability Bot",  "path": None},
-    {"id": "todo-ping", "label": "Todo Pinger",         "path": None},
-    {"id": "adhd-bot",  "label": "ADHD Bot",            "path": None},
-    {"id": "food",      "label": "Food / Nutrition",    "path": "/food/"},
+    {"id": "arcade",    "label": "Arcade",              "path": "/arcade/"},
+    {"id": "plants",    "label": "Plants Tracker",       "path": "/plants/"},
+    {"id": "todo",      "label": "Accountability Bot",   "path": None},
+    {"id": "todo-ping", "label": "Todo Pinger",          "path": None},
+    {"id": "adhd-bot",  "label": "ADHD Bot",             "path": None},
+    {"id": "food",      "label": "Hub Bot (food/workout/meds)", "path": None},
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
     {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
+]
+
+# Sub-page dashboards served by the panel itself (no separate systemd service)
+DASHBOARDS = [
+    {"label": "Nutrition",         "path": "/food/"},
+    {"label": "Meal Prep / Fridge", "path": "/mealprep/"},
+    {"label": "Workout",           "path": "/workout/"},
+    {"label": "Meds & Supplements", "path": "/meds/"},
 ]
 
 
@@ -73,7 +103,7 @@ def index():
     for svc in SERVICES:
         status = service_status(svc["id"])
         services.append({**svc, "status": status})
-    return render_template("index.html", services=services)
+    return render_template("index.html", services=services, dashboards=DASHBOARDS)
 
 
 @app.route("/api/status")

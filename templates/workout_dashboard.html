@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Workout</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif; padding: 1rem; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; }
+  .subtitle { color: #64748b; font-size: .82rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem; border: 1px solid #334155; margin-bottom: .75rem; }
+  h2 { color: #7dd3fc; font-size: .95rem; margin-bottom: .75rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  th { text-align: left; color: #64748b; font-weight: 600; padding: .4rem .3rem; border-bottom: 1px solid #334155; }
+  td { padding: .45rem .3rem; border-bottom: 1px solid #1e293b; }
+  tr:last-child td { border-bottom: none; }
+  input[type=text], input[type=number], input[type=date] {
+    background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; padding: .3rem .5rem; font-size: .8rem;
+  }
+  button { border: none; border-radius: 6px; padding: .35rem .7rem; font-size: .78rem; font-weight: 600; cursor: pointer; }
+  .btn-add  { background: #166534; color: #4ade80; }
+  .btn-del  { background: none; color: #475569; }
+  .btn-del:hover { color: #f87171; }
+  .btn-nav  { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .75rem; }
+  .form-full { grid-column: 1/-1; }
+  .form-row  { display: flex; flex-direction: column; gap: .2rem; font-size: .75rem; color: #64748b; }
+  .form-row input { width: 100%; }
+  .date-nav { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; font-size: .85rem; }
+  .empty { color: #475569; text-align: center; padding: 1rem; font-size: .85rem; }
+  .hist-row { display: flex; justify-content: space-between; font-size: .8rem;
+              padding: .25rem 0; border-bottom: 1px solid #0f172a; color: #94a3b8; }
+  .hist-row a { color: #38bdf8; text-decoration: none; }
+  .hist-row:last-child { border-bottom: none; }
+  .badge { display: inline-block; background: #1e3a5f; color: #7dd3fc; border-radius: 4px;
+           font-size: .68rem; padding: .1rem .35rem; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>💪 Workout</h1>
+
+<!-- Date navigation -->
+<div class="date-nav">
+  <button class="btn-nav" onclick="changeDate(-1)">◀</button>
+  <input type="date" id="date-picker" value="{{ date }}" onchange="goToDate(this.value)">
+  <button class="btn-nav" onclick="changeDate(1)">▶</button>
+  <button class="btn-nav" onclick="goToDate(todayStr())">Today</button>
+</div>
+
+<!-- Today's log -->
+<div class="card">
+  <h2 id="log-title">{{ date }}</h2>
+  <div id="log-content">
+    {% if log %}
+    <table>
+      <thead><tr><th>Exercise</th><th>Sets×Reps</th><th>Weight</th><th>Duration</th><th>Distance</th><th></th></tr></thead>
+      <tbody id="log-body">
+      {% for ex in log %}
+      <tr id="ex-{{ ex.id }}">
+        <td><strong>{{ ex.exercise }}</strong>{% if ex.notes %}<br><span style="color:#64748b;font-size:.72rem">{{ ex.notes }}</span>{% endif %}</td>
+        <td>{% if ex.sets and ex.reps %}{{ ex.sets }}×{{ ex.reps }}{% elif ex.reps %}{{ ex.reps }}{% else %}—{% endif %}</td>
+        <td>{% if ex.weight_kg %}{{ "%.1f"|format(ex.weight_kg) }} kg{% else %}—{% endif %}</td>
+        <td>{% if ex.duration_min %}{{ "%.0f"|format(ex.duration_min) }} min{% else %}—{% endif %}</td>
+        <td>{% if ex.distance_km %}{{ "%.1f"|format(ex.distance_km) }} km{% else %}—{% endif %}</td>
+        <td><button class="btn-del" onclick="deleteEx({{ ex.id }})">✕</button></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No workout logged for {{ date }}.</div>
+    {% endif %}
+  </div>
+
+  <!-- Add exercise form -->
+  <div class="add-form" style="margin-top:1rem">
+    <div class="form-row form-full"><span>Exercise name</span><input type="text" id="ex-name" placeholder="Push-ups, Running, Bench press..."></div>
+    <div class="form-row"><span>Sets</span><input type="number" id="ex-sets" min="1" placeholder="3"></div>
+    <div class="form-row"><span>Reps</span><input type="number" id="ex-reps" min="1" placeholder="10"></div>
+    <div class="form-row"><span>Weight (kg)</span><input type="number" id="ex-weight" step="0.5" placeholder="60"></div>
+    <div class="form-row"><span>Duration (min)</span><input type="number" id="ex-dur" step="1" placeholder="30"></div>
+    <div class="form-row"><span>Distance (km)</span><input type="number" id="ex-dist" step="0.1" placeholder="5"></div>
+    <div class="form-row"><span>Notes</span><input type="text" id="ex-notes" placeholder="optional"></div>
+    <div class="form-full"><button class="btn-add" onclick="addExercise()" style="width:100%;padding:.5rem">+ Log Exercise</button></div>
+  </div>
+</div>
+
+<!-- History -->
+<div class="card">
+  <h2>History</h2>
+  {% if history %}
+  <div>
+  {% for r in history %}
+  <div class="hist-row">
+    <a href="?date={{ r.date }}">{{ r.date }}</a>
+    <span><span class="badge">{{ r.exercises }}</span> exercise(s)</span>
+  </div>
+  {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">No history yet.</div>
+  {% endif %}
+</div>
+
+<script>
+let currentDate = '{{ date }}';
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function goToDate(d) {
+  window.location.href = '/workout/?date=' + d;
+}
+
+function changeDate(delta) {
+  const d = new Date(currentDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  goToDate(d.toISOString().split('T')[0]);
+}
+
+async function deleteEx(id) {
+  if (!confirm('Delete this exercise?')) return;
+  await fetch('/workout/api/delete/' + id, {method: 'POST'});
+  const row = document.getElementById('ex-' + id);
+  if (row) row.remove();
+}
+
+async function addExercise() {
+  const name = document.getElementById('ex-name').value.trim();
+  if (!name) { alert('Exercise name required.'); return; }
+  const payload = {
+    exercise:     name,
+    sets:         parseInt(document.getElementById('ex-sets').value) || null,
+    reps:         parseInt(document.getElementById('ex-reps').value) || null,
+    weight_kg:    parseFloat(document.getElementById('ex-weight').value) || null,
+    duration_min: parseFloat(document.getElementById('ex-dur').value) || null,
+    distance_km:  parseFloat(document.getElementById('ex-dist').value) || null,
+    notes:        document.getElementById('ex-notes').value.trim() || null,
+    date:         currentDate,
+  };
+  await fetch('/workout/api/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  window.location.reload();
+}
+</script>
+</body>
+</html>

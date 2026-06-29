@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Meds</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif; padding: 1rem; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; }
+  .subtitle { color: #64748b; font-size: .82rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem; border: 1px solid #334155; margin-bottom: .75rem; }
+  h2 { color: #7dd3fc; font-size: .95rem; margin-bottom: .75rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  th { text-align: left; color: #64748b; font-weight: 600; padding: .4rem .3rem; border-bottom: 1px solid #334155; }
+  td { padding: .45rem .3rem; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.inactive td { opacity: .4; }
+  input[type=text], input[type=number], select {
+    background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+    color: #e2e8f0; padding: .3rem .5rem; font-size: .8rem;
+  }
+  button { border: none; border-radius: 6px; padding: .35rem .7rem; font-size: .78rem; font-weight: 600; cursor: pointer; }
+  .btn-log    { background: #166534; color: #4ade80; }
+  .btn-toggle { background: #1e3a5f; color: #7dd3fc; font-size: .72rem; padding: .2rem .5rem; }
+  .btn-del    { background: none; color: #475569; }
+  .btn-del:hover { color: #f87171; }
+  .btn-add    { background: #166534; color: #4ade80; }
+  .cat-badge { display: inline-block; font-size: .65rem; padding: .1rem .3rem;
+               border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+  .cat-medication  { background: #7f1d1d; color: #f87171; }
+  .cat-supplement  { background: #1c3050; color: #7dd3fc; }
+  .cat-vitamin     { background: #14532d; color: #4ade80; }
+  .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .75rem; }
+  .form-full { grid-column: 1/-1; }
+  .form-row  { display: flex; flex-direction: column; gap: .2rem; font-size: .75rem; color: #64748b; }
+  .form-row input, .form-row select { width: 100%; }
+  .dose-row  { display: flex; justify-content: space-between; align-items: center;
+               font-size: .8rem; padding: .3rem 0; border-bottom: 1px solid #0f172a; }
+  .dose-row:last-child { border-bottom: none; }
+  .dose-time { color: #64748b; font-size: .72rem; }
+  .empty { color: #475569; text-align: center; padding: 1rem; font-size: .85rem; }
+  .refresh-bar { display: flex; gap: .75rem; align-items: center; margin-bottom: 1rem; font-size: .8rem; color: #64748b; }
+  .refresh-bar button { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+</style>
+</head>
+<body>
+
+<h1>💊 Meds & Supplements</h1>
+
+<div class="refresh-bar">
+  <span id="last-refresh">—</span>
+  <button onclick="refreshDoses()">↻ Refresh doses</button>
+</div>
+
+<!-- Today's doses -->
+<div class="card">
+  <h2>Today's Doses</h2>
+  <div id="doses-content">
+    {% if doses %}
+    {% for d in doses %}
+    <div class="dose-row" id="dose-{{ d.id }}">
+      <span>
+        <strong>{{ d.med_name }}</strong>
+        {% if d.dose_amount %} — {{ d.dose_amount | int }} {{ d.dose_unit }}{% endif %}
+        {% if d.notes %} <span style="color:#64748b">{{ d.notes }}</span>{% endif %}
+      </span>
+      <span>
+        <span class="dose-time">{{ d.logged_at[11:16] }}</span>
+        <button class="btn-del" onclick="deleteDose({{ d.id }})" title="Delete">✕</button>
+      </span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty" id="doses-empty">No doses logged today.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Catalog -->
+<div class="card">
+  <h2>Catalog</h2>
+  {% if catalog %}
+  <table>
+    <thead><tr><th>Name</th><th>Dose</th><th>Category</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+    {% for med in catalog %}
+    <tr id="med-{{ med.id }}" class="{{ '' if med.active else 'inactive' }}">
+      <td><strong>{{ med.name }}</strong>{% if med.notes %}<br><span style="color:#64748b;font-size:.72rem">{{ med.notes }}</span>{% endif %}</td>
+      <td>{{ "%.0f"|format(med.dose_amount) if med.dose_amount else '—' }} {{ med.dose_unit or '' }}</td>
+      <td><span class="cat-badge cat-{{ med.category }}">{{ med.category }}</span></td>
+      <td>
+        <button class="btn-toggle" onclick="toggleMed({{ med.id }}, {{ 0 if med.active else 1 }})">
+          {{ 'Active' if med.active else 'Inactive' }}
+        </button>
+      </td>
+      <td>
+        {% if med.active %}
+        <button class="btn-log" onclick="logDose('{{ med.name }}', {{ med.dose_amount or 'null' }}, '{{ med.dose_unit or '' }}')">
+          Log dose
+        </button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No medications in catalog yet.</div>
+  {% endif %}
+
+  <!-- Add med form -->
+  <div class="add-form" style="margin-top:1rem">
+    <div class="form-row form-full"><span>Name</span><input type="text" id="med-name" placeholder="Metformin, Vitamin D..."></div>
+    <div class="form-row"><span>Dose amount</span><input type="number" id="med-dose" step="any" placeholder="500"></div>
+    <div class="form-row"><span>Unit</span><input type="text" id="med-unit" placeholder="mg, IU, mcg..."></div>
+    <div class="form-row">
+      <span>Category</span>
+      <select id="med-cat">
+        <option value="supplement">supplement</option>
+        <option value="medication">medication</option>
+        <option value="vitamin">vitamin</option>
+      </select>
+    </div>
+    <div class="form-row"><span>Notes (optional)</span><input type="text" id="med-notes" placeholder="with food, before bed..."></div>
+    <div class="form-full"><button class="btn-add" onclick="addMed()" style="width:100%;padding:.5rem">+ Add to Catalog</button></div>
+  </div>
+</div>
+
+<script>
+async function logDose(name, dose_amount, dose_unit) {
+  await fetch('/meds/api/log_dose', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({med_name: name, dose_amount: dose_amount, dose_unit: dose_unit || null}),
+  });
+  await refreshDoses();
+}
+
+async function deleteDose(id) {
+  await fetch('/meds/api/delete_dose/' + id, {method: 'POST'});
+  const el = document.getElementById('dose-' + id);
+  if (el) el.remove();
+}
+
+async function toggleMed(id, newActive) {
+  await fetch('/meds/api/toggle/' + id, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({active: newActive}),
+  });
+  window.location.reload();
+}
+
+async function addMed() {
+  const name = document.getElementById('med-name').value.trim();
+  if (!name) { alert('Name required.'); return; }
+  await fetch('/meds/api/add_med', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name,
+      dose_amount: parseFloat(document.getElementById('med-dose').value) || null,
+      dose_unit:   document.getElementById('med-unit').value.trim() || null,
+      category:    document.getElementById('med-cat').value,
+      notes:       document.getElementById('med-notes').value.trim() || null,
+    }),
+  });
+  window.location.reload();
+}
+
+async function refreshDoses() {
+  const r = await fetch('/meds/api/today_doses');
+  const doses = await r.json();
+  const el = document.getElementById('doses-content');
+  if (!doses.length) {
+    el.innerHTML = '<div class="empty">No doses logged today.</div>';
+    return;
+  }
+  el.innerHTML = doses.map(d => `
+    <div class="dose-row" id="dose-${d.id}">
+      <span><strong>${d.med_name}</strong>${d.dose_amount ? ' — ' + Math.round(d.dose_amount) + ' ' + (d.dose_unit||'') : ''}</span>
+      <span>
+        <span class="dose-time">${d.logged_at.substring(11,16)}</span>
+        <button class="btn-del" onclick="deleteDose(${d.id})">✕</button>
+      </span>
+    </div>
+  `).join('');
+  document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+</script>
+</body>
+</html>

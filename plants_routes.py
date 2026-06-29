@@ -164,6 +164,23 @@ def plant_edit(plant_id):
     return render_template("edit.html", plant=plant, url_prefix=_URL_PREFIX)
 
 
+@plants_bp.route("/plant/<int:plant_id>/water", methods=["POST"])
+def plant_water(plant_id):
+    conn = _get_db()
+    plant = conn.execute("SELECT id FROM plants WHERE id = ?", (plant_id,)).fetchone()
+    if not plant:
+        conn.close()
+        abort(404)
+    amount_ml = int(request.form.get("amount_ml") or 200)
+    conn.execute(
+        "INSERT INTO watering_history (plant_id, amount_ml) VALUES (?, ?)",
+        (plant_id, amount_ml),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("plants.plant_detail", plant_id=plant_id))
+
+
 @plants_bp.route("/plant/<int:plant_id>/photo")
 def plant_photo(plant_id):
     conn = _get_db()
