@@ -54,6 +54,7 @@
 <div class="refresh-bar">
   <span id="last-refresh">—</span>
   <button onclick="refreshAll()">↻ Refresh</button>
+  <button onclick="restartPanel()" style="background:#7f1d1d;color:#f87171;border:none;">⟳ Restart Panel</button>
 </div>
 
 <div class="grid" id="services">
@@ -169,6 +170,13 @@ async function loadMonitor() {
   } catch(e) {
     el.innerHTML = '<pre>Error loading monitor log.</pre>';
   }
+}
+
+async function restartPanel() {
+  if (!confirm('Restart the control panel? Page will reload in 3 seconds.')) return;
+  document.getElementById('last-refresh').textContent = 'Restarting…';
+  await fetch('/api/restart-panel', {method: 'POST'}).catch(() => {});
+  setTimeout(() => window.location.reload(), 3000);
 }
 
 // Auto-refresh status every 30 seconds

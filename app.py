@@ -61,6 +61,7 @@ SERVICES = [
     {"id": "plants",    "label": "Plants Tracker",       "path": "/plants/"},
     {"id": "todo",      "label": "Accountability Bot",   "path": None},
     {"id": "todo-ping", "label": "Todo Pinger",          "path": None},
+    {"id": "franklin",  "label": "Franklin",             "path": None},
     {"id": "adhd-bot",  "label": "ADHD Bot",             "path": None},
     {"id": "food",      "label": "Hub Bot (food/workout/meds)", "path": None},
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
@@ -137,6 +138,16 @@ def api_logs(service_id: str):
         return jsonify({"ok": False, "error": "Unknown service"}), 400
     lines = int(request.args.get("lines", 60))
     return jsonify({"ok": True, "logs": service_logs(service_id, lines)})
+
+
+@app.route("/api/restart-panel", methods=["POST"])
+def api_restart_panel():
+    # Fire restart after a 1s delay so this response can be delivered first
+    subprocess.Popen(
+        ["sudo", "bash", "-c", "sleep 1 && systemctl restart app-panel"],
+        start_new_session=True,
+    )
+    return jsonify({"ok": True})
 
 
 @app.route("/api/monitor")
