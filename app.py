@@ -54,6 +54,13 @@ except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("Meds blueprint unavailable: %s", _e)
 
+try:
+    from wp_routes import wp_bp
+    app.register_blueprint(wp_bp, url_prefix="/wp")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Willpower blueprint unavailable: %s", _e)
+
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 SERVICES = [
@@ -66,6 +73,7 @@ SERVICES = [
     {"id": "food",      "label": "Hub Bot (food/workout/meds)", "path": None},
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
     {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
+    {"id": "wp-instinct", "label": "Willpower Instinct Bot", "path": None},
 ]
 
 # Sub-page dashboards served by the panel itself (no separate systemd service)
@@ -74,6 +82,7 @@ DASHBOARDS = [
     {"label": "Meal Prep / Fridge", "path": "/mealprep/"},
     {"label": "Workout",           "path": "/workout/"},
     {"label": "Meds & Supplements", "path": "/meds/"},
+    {"label": "Willpower Instinct", "path": "/wp/"},
 ]
 
 

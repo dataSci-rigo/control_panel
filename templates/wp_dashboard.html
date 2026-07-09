@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Willpower Instinct</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif;
+         min-height: 100vh; padding: 1rem; }
+  a { color: #38bdf8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; letter-spacing: .05em; }
+  h2 { color: #7dd3fc; font-size: .95rem; margin-bottom: .6rem; }
+  .sub { color: #64748b; font-size: .82rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem;
+          border: 1px solid #334155; margin-bottom: .75rem; }
+  .card-row { display: flex; justify-content: space-between; align-items: baseline;
+              margin-bottom: .35rem; }
+  .label { color: #94a3b8; font-size: .82rem; }
+  .value { color: #e2e8f0; font-size: .88rem; font-weight: 500; }
+  .pill { display: inline-block; font-size: .7rem; font-weight: 700; padding: .15rem .55rem;
+          border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; }
+  .pill-active { background: #166534; color: #4ade80; }
+  .pill-yes    { background: #14532d; color: #4ade80; }
+  .pill-partial{ background: #713f12; color: #fbbf24; }
+  .pill-no     { background: #7f1d1d; color: #f87171; }
+  .week-nav { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+  .week-nav a { font-size: .82rem; }
+  .week-nav span { color: #38bdf8; font-weight: 700; font-size: .95rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th { text-align: left; color: #64748b; font-weight: 600; padding: .4rem .3rem;
+       border-bottom: 1px solid #334155; white-space: nowrap; }
+  td { padding: .5rem .3rem; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.today-row td { background: #162032; }
+  .energy-pip { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                background: #38bdf8; margin-right: 1px; }
+  .energy-pip.dim { background: #334155; }
+  .gave-in-yes { color: #f87171; font-size: .72rem; }
+  .gave-in-no  { color: #4ade80; font-size: .72rem; }
+  .btn-edit { background: #1e3a5f; color: #7dd3fc; border: 1px solid #334155;
+              border-radius: 6px; padding: .2rem .55rem; font-size: .75rem; cursor: pointer;
+              text-decoration: none; display: inline-block; }
+  .btn-edit:hover { background: #264a75; text-decoration: none; }
+  .urge-row { display: flex; justify-content: space-between; align-items: center;
+              font-size: .8rem; padding: .35rem 0; border-bottom: 1px solid #0f172a; }
+  .urge-row:last-child { border-bottom: none; }
+  .urge-ts { color: #475569; font-size: .72rem; white-space: nowrap; }
+  .urge-trigger { color: #94a3b8; flex: 1; padding: 0 .5rem; }
+  .urge-intensity { color: #fbbf24; font-size: .72rem; white-space: nowrap; }
+  .btn-del { background: none; border: none; color: #475569; cursor: pointer;
+             font-size: .82rem; padding: .1rem .3rem; }
+  .btn-del:hover { color: #f87171; }
+  .synthesis-text { color: #cbd5e1; font-size: .84rem; line-height: 1.6;
+                    white-space: pre-wrap; }
+  .empty { color: #475569; font-size: .82rem; text-align: center; padding: 1rem 0; }
+  .no-cycle { color: #64748b; font-size: .9rem; text-align: center; padding: 2rem 0; }
+  .theme-text { color: #94a3b8; font-size: .8rem; line-height: 1.55;
+                border-left: 3px solid #334155; padding-left: .6rem; }
+  .progress-bar { background: #0f172a; border-radius: 99px; height: 6px;
+                  overflow: hidden; margin-top: .35rem; }
+  .progress-fill { height: 100%; border-radius: 99px; background: #38bdf8; }
+</style>
+</head>
+<body>
+
+<h1>Willpower Instinct</h1>
+<p class="sub"><a href="/">← Panel</a></p>
+
+{% if not cycle %}
+<div class="no-cycle">No active cycle. Start one via the Telegram bot with /start.</div>
+{% else %}
+
+{# ── Cycle header ── #}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.6rem;">
+    <h2 style="margin-bottom:0">Active Cycle</h2>
+    <span class="pill pill-active">Week {{ view_week }} / 10</span>
+  </div>
+  <div class="card-row">
+    <span class="label">Challenge ({{ cycle.challenge_type|replace('_',' ')|title }})</span>
+    <span class="value">{{ cycle.challenge_text }}</span>
+  </div>
+  <div class="card-row">
+    <span class="label">I Want anchor</span>
+    <span class="value">{{ cycle.i_want_anchor }}</span>
+  </div>
+  <div class="card-row">
+    <span class="label">Started</span>
+    <span class="value">{{ cycle.started_at }}</span>
+  </div>
+  {% if week %}
+  <div class="progress-bar">
+    <div class="progress-fill" style="width:{{ (view_week / 10 * 100)|int }}%"></div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Week header + navigation ── #}
+{% if week %}
+<div class="card">
+  <div class="week-nav">
+    {% if view_week > 1 %}
+      <a href="?week={{ view_week - 1 }}">‹ Week {{ view_week - 1 }}</a>
+    {% else %}
+      <span style="color:#334155">‹</span>
+    {% endif %}
+    <span>Week {{ view_week }}: {{ week.title }}</span>
+    {% if view_week < 10 %}
+      <a href="?week={{ view_week + 1 }}">Week {{ view_week + 1 }} ›</a>
+    {% else %}
+      <span style="color:#334155">›</span>
+    {% endif %}
+  </div>
+  <p class="theme-text">{{ week.theme }}</p>
+  {% if week_start and week_end %}
+  <p class="label" style="margin-top:.5rem">{{ week_start }} → {{ week_end }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ── Daily entries table ── #}
+<div class="card">
+  <h2>Daily Entries</h2>
+  {% if entries %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Energy</th>
+        <th>Challenge</th>
+        <th>Urges</th>
+        <th>Sleep</th>
+        <th>Obs?</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for day in entries %}
+      {% set e = day.entry %}
+      {% set b = day.boosters %}
+      <tr{% if day.date == today %} class="today-row"{% endif %}>
+        <td>
+          <span style="color:{% if day.date == today %}#38bdf8{% else %}#94a3b8{% endif %}; font-size:.8rem">
+            {{ day.date[5:] }}{% if day.date == today %} ←{% endif %}
+          </span>
+        </td>
+        <td>
+          {% if e and e.energy_level %}
+            {% for i in range(5) %}
+              <span class="energy-pip{% if i >= e.energy_level %} dim{% endif %}"></span>
+            {% endfor %}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if e and e.challenge_adherence %}
+            {% if e.challenge_adherence == 'yes' %}
+              <span class="pill pill-yes">Yes</span>
+            {% elif e.challenge_adherence == 'partial' %}
+              <span class="pill pill-partial">Part</span>
+            {% else %}
+              <span class="pill pill-no">No</span>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td style="color:#7dd3fc">{{ e.urge_count if e and e.urge_count is not none else '—' }}</td>
+        <td style="color:#94a3b8; font-size:.78rem">
+          {{ b.sleep_hours if b and b.sleep_hours else '—' }}
+        </td>
+        <td style="color:#64748b; font-size:.78rem">
+          {{ '✓' if e and e.microscope_obs else '' }}
+        </td>
+        <td>
+          <a class="btn-edit" href="{{ url_for('wp.edit_entry', entry_date=day.date) }}">Edit</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No entries yet for this week.</p>
+  {% endif %}
+</div>
+
+{# ── Urges ── #}
+<div class="card">
+  <h2>Urges This Week — {{ urges|length }} total</h2>
+  {% if urges %}
+  {% set gave_in_count = urges|selectattr('gave_in','equalto',1)|list|length %}
+  <p class="label" style="margin-bottom:.6rem">Gave in: {{ gave_in_count }} / {{ urges|length }}</p>
+  {% for u in urges %}
+  <div class="urge-row">
+    <span class="urge-ts">{{ u.timestamp[:16] }}</span>
+    <span class="urge-trigger">
+      {{ u.trigger_text or '(no trigger noted)' }}
+      {% if u.notes %}<br><span style="color:#475569;font-size:.72rem">{{ u.notes }}</span>{% endif %}
+    </span>
+    <span class="urge-intensity">{{ '★' * (u.intensity or 0) }}</span>
+    <span style="margin-left:.5rem">
+      {% if u.gave_in %}
+        <span class="gave-in-yes">gave in</span>
+      {% else %}
+        <span class="gave-in-no">resisted</span>
+      {% endif %}
+    </span>
+    <form method="post" action="{{ url_for('wp.delete_urge', urge_id=u.id) }}"
+          style="display:inline" onsubmit="return confirm('Delete this urge log?')">
+      <button class="btn-del" type="submit">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="empty">No urges logged this week.</p>
+  {% endif %}
+</div>
+
+{# ── Weekly synthesis ── #}
+<div class="card">
+  <h2>Week {{ view_week }} Synthesis</h2>
+  {% if synthesis %}
+  <p class="label" style="margin-bottom:.5rem">
+    Generated {{ synthesis.generated_at[:10] }}
+  </p>
+  <p class="synthesis-text">{{ synthesis.claude_response_text }}</p>
+  {% else %}
+  <p class="empty">No synthesis yet. Generated Sunday evening after the week completes.</p>
+  {% endif %}
+</div>
+
+{% if week %}
+{# ── Microscope + Experiment reminder ── #}
+<div class="card">
+  <h2>This Week's Focus</h2>
+  {% if week.microscope %}
+  <p class="label" style="margin-bottom:.25rem">Under the Microscope</p>
+  <p class="theme-text" style="margin-bottom:.75rem">{{ week.microscope.text }}</p>
+  {% endif %}
+  {% if week.experiment %}
+  <p class="label" style="margin-bottom:.25rem">Experiment</p>
+  <p class="theme-text">{{ week.experiment.text }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endif %}{# end cycle #}
+
+</body>
+</html>
