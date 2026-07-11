@@ -76,7 +76,10 @@
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:.6rem;">
     <h2 style="margin-bottom:0">Active Cycle</h2>
-    <span class="pill pill-active">Week {{ view_week }} / 10</span>
+    <div style="display:flex; gap:.5rem; align-items:center;">
+      <a href="{{ url_for('wp.challenges') }}" class="btn-edit">Challenges</a>
+      <span class="pill pill-active">Week {{ view_week }} / 10</span>
+    </div>
   </div>
   <div class="card-row">
     <span class="label">Challenge ({{ cycle.challenge_type|replace('_',' ')|title }})</span>

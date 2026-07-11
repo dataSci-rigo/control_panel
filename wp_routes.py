@@ -276,3 +276,57 @@ def delete_urge(urge_id: int):
     conn.commit()
     conn.close()
     return redirect(request.referrer or url_for("wp.dashboard"))
+
+
+# ── challenges ────────────────────────────────────────────────────────────────
+
+def _get_challenges(cycle_id: int) -> list[dict]:
+    conn = _db()
+    rows = conn.execute(
+        "SELECT * FROM challenges WHERE cycle_id=? ORDER BY sort_order, id",
+        (cycle_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@wp_bp.route("/challenges", methods=["GET", "POST"])
+def challenges():
+    owner_id = _owner_id()
+    cycle = _get_active_cycle(owner_id)
+    if not cycle:
+        return redirect(url_for("wp.dashboard"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        conn = _db()
+
+        if action == "add":
+            c_type = request.form.get("challenge_type", "i_will").strip()
+            c_text = request.form.get("challenge_text", "").strip()
+            if c_text:
+                conn.execute(
+                    "INSERT INTO challenges (user_id, cycle_id, challenge_type, challenge_text) "
+                    "VALUES (?, ?, ?, ?)",
+                    (owner_id, cycle["id"], c_type, c_text),
+                )
+        elif action == "delete":
+            c_id = int(request.form.get("challenge_id", 0))
+            conn.execute("DELETE FROM challenges WHERE id=? AND user_id=?", (c_id, owner_id))
+        elif action == "edit":
+            c_id = int(request.form.get("challenge_id", 0))
+            c_type = request.form.get("challenge_type", "i_will").strip()
+            c_text = request.form.get("challenge_text", "").strip()
+            if c_text:
+                conn.execute(
+                    "UPDATE challenges SET challenge_type=?, challenge_text=? "
+                    "WHERE id=? AND user_id=?",
+                    (c_type, c_text, c_id, owner_id),
+                )
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for("wp.challenges"))
+
+    challenge_list = _get_challenges(cycle["id"])
+    return render_template("wp_challenges.html", cycle=cycle, challenges=challenge_list)
