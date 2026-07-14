@@ -290,6 +290,11 @@ def _get_challenges(cycle_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+@wp_bp.route("/help")
+def help_page():
+    return render_template("wp_help.html")
+
+
 @wp_bp.route("/challenges", methods=["GET", "POST"])
 def challenges():
     owner_id = _owner_id()
@@ -329,4 +334,5 @@ def challenges():
         return redirect(url_for("wp.challenges"))
 
     challenge_list = _get_challenges(cycle["id"])
-    return render_template("wp_challenges.html", cycle=cycle, challenges=challenge_list)
+    return render_template("wp_challenges.html", cycle=cycle, challenges=challenge_list,
+                           today=date.today().isoformat())

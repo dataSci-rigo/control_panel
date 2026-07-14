@@ -64,7 +64,8 @@
 <h1>Willpower Challenges</h1>
 <p class="sub">
   <a href="{{ url_for('wp.dashboard') }}">← Dashboard</a>
-  &nbsp;/&nbsp; {{ cycle.challenge_text }} (primary)
+  &nbsp;·&nbsp;
+  <a href="{{ url_for('wp.edit_entry', entry_date=today) }}">Edit Today's Entry</a>
 </p>
 
 {# ── Existing challenges ── #}

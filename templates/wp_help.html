@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>WPI Bot — Help</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif;
+         min-height: 100vh; padding: 1rem; }
+  a { color: #38bdf8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: .25rem; }
+  h2 { color: #7dd3fc; font-size: .88rem; font-weight: 700; margin: 1rem 0 .4rem; }
+  .sub { color: #64748b; font-size: .82rem; margin-bottom: 1rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem;
+          border: 1px solid #334155; margin-bottom: .75rem; }
+  .cmd-row { display: flex; gap: .75rem; align-items: baseline;
+             padding: .45rem 0; border-bottom: 1px solid #0f172a; }
+  .cmd-row:last-child { border-bottom: none; }
+  .cmd { font-family: monospace; color: #38bdf8; font-size: .88rem;
+         white-space: nowrap; min-width: 130px; }
+  .cmd-desc { color: #94a3b8; font-size: .82rem; line-height: 1.45; }
+  .badge { display: inline-block; font-size: .65rem; font-weight: 700;
+           padding: .1rem .45rem; border-radius: 99px; margin-left: .4rem;
+           text-transform: uppercase; letter-spacing: .04em; vertical-align: middle; }
+  .badge-ai { background: #1e3a5f; color: #7dd3fc; }
+</style>
+</head>
+<body>
+
+<h1>Bot Commands</h1>
+<p class="sub"><a href="{{ url_for('wp.dashboard') }}">← Dashboard</a></p>
+
+<div class="card">
+  <h2>Setup</h2>
+  <div class="cmd-row">
+    <span class="cmd">/start</span>
+    <span class="cmd-desc">Begin a new 10-week cycle — choose your challenge type and set your I Want anchor</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/reset</span>
+    <span class="cmd-desc">Archive the current cycle and start fresh (history is preserved)</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Daily</h2>
+  <div class="cmd-row">
+    <span class="cmd">/log</span>
+    <span class="cmd-desc">Log an urge — trigger, intensity (1–5), gave in or resisted, and notes</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/today</span>
+    <span class="cmd-desc">See today's check-in entry, urges logged, and recovery boosters</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Weekly</h2>
+  <div class="cmd-row">
+    <span class="cmd">/week</span>
+    <span class="cmd-desc">This week's theme, Under the Microscope exercise, and experiment</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/tips</span>
+    <span class="cmd-desc">3–5 practical tips tailored to this week's theme and your challenge
+      <span class="badge badge-ai">AI</span></span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/history [N]</span>
+    <span class="cmd-desc">Read the AI synthesis for Week N (defaults to current week)
+      <span class="badge badge-ai">AI</span></span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Info</h2>
+  <div class="cmd-row">
+    <span class="cmd">/status</span>
+    <span class="cmd-desc">Cycle overview — current week, day, challenge, and start date</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/help</span>
+    <span class="cmd-desc">Show the command list in Telegram</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">/cancel</span>
+    <span class="cmd-desc">Exit any in-progress conversation (/start, /log, /reset)</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Automated (no command needed)</h2>
+  <div class="cmd-row">
+    <span class="cmd">8 AM daily</span>
+    <span class="cmd-desc">Morning nudge — today's prompt from the week's daily rotation + experiment reminder</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">9 PM daily</span>
+    <span class="cmd-desc">Evening check-in — energy, adherence, urges, boosters via inline buttons</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">Monday 8 AM</span>
+    <span class="cmd-desc">Weekly kickoff — new week intro with theme and experiment</span>
+  </div>
+  <div class="cmd-row">
+    <span class="cmd">Sunday 9 PM</span>
+    <span class="cmd-desc">Weekly synthesis — AI reflection on your week's data
+      <span class="badge badge-ai">AI</span></span>
+  </div>
+</div>
+
+</body>
+</html>
