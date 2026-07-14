@@ -66,9 +66,7 @@ PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 SERVICES = [
     {"id": "arcade",    "label": "Arcade",              "path": "/arcade/"},
     {"id": "plants",    "label": "Plants Tracker",       "path": "/plants/"},
-    {"id": "todo",      "label": "Accountability Bot",   "path": None},
-    {"id": "todo-ping", "label": "Todo Pinger",          "path": None},
-    {"id": "franklin",  "label": "Franklin",             "path": None},
+    {"id": "todo",      "label": "Accountability Bot + Pinger + Franklin", "path": None},
     {"id": "adhd-bot",  "label": "ADHD Bot",             "path": None},
     {"id": "food",      "label": "Hub Bot (food/workout/meds)", "path": None},
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
