@@ -73,6 +73,7 @@ SERVICES = [
     {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
     {"id": "wp-instinct", "label": "Willpower Instinct Bot", "path": None},
     {"id": "stm",         "label": "Semantic Task Manager",  "path": None},
+    {"id": "cadonors",    "label": "CA Donor Research",      "path": None, "port": 5056},
 ]
 
 # Sub-page dashboards served by the panel itself (no separate systemd service)

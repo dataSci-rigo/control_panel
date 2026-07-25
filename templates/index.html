@@ -72,6 +72,8 @@
       <button class="btn-logs"    onclick="toggleLogs('{{ svc.id }}')">Logs</button>
       {% if svc.path %}
       <button class="btn-open"    onclick="window.open('{{ svc.path }}','_blank')">Open</button>
+      {% elif svc.port %}
+      <button class="btn-open"    onclick="window.open('http://'+window.location.hostname+':{{ svc.port }}/v2','_blank')">Open</button>
       {% endif %}
     </div>
     <div class="logs-box" id="logs-{{ svc.id }}">
