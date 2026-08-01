@@ -61,6 +61,13 @@ except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("Willpower blueprint unavailable: %s", _e)
 
+try:
+    from shopping_routes import shopping_bp
+    app.register_blueprint(shopping_bp, url_prefix="/shopping")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Shopping blueprint unavailable: %s", _e)
+
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 SERVICES = [
@@ -72,7 +79,7 @@ SERVICES = [
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
     {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
     {"id": "wp-instinct", "label": "Willpower Instinct Bot", "path": None},
-    {"id": "stm",         "label": "Semantic Task Manager",  "path": None},
+    {"id": "stm",         "label": "Semantic Task Manager",  "path": "/shopping/"},
     {"id": "cadonors",    "label": "CA Donor Research",      "path": None, "port": 5056},
 ]
 
@@ -83,6 +90,7 @@ DASHBOARDS = [
     {"label": "Workout",           "path": "/workout/"},
     {"label": "Meds & Supplements", "path": "/meds/"},
     {"label": "Willpower Instinct", "path": "/wp/"},
+    {"label": "Shopping Lists",    "path": "/shopping/"},
 ]
 
 

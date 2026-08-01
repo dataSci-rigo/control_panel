@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>shopping lists</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif;
+         min-height: 100vh; padding: 1rem; }
+  h1 { color: #38bdf8; font-size: 1.25rem; margin-bottom: 1rem; letter-spacing: .05em; }
+  h2 { font-size: .95rem; color: #7dd3fc; margin: 1.25rem 0 .5rem; }
+  .empty { color: #64748b; font-size: .85rem; padding: .5rem 0; }
+  .item { display: flex; justify-content: space-between; align-items: center;
+          background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+          padding: .6rem .8rem; margin-bottom: .5rem; }
+  .item-name { font-size: .9rem; }
+  .item-actions { display: flex; gap: .4rem; }
+  button { border: none; border-radius: 6px; padding: .4rem .7rem;
+           font-size: .78rem; font-weight: 600; cursor: pointer; }
+  .btn-own    { background: #166534; color: #4ade80; }
+  .btn-remove { background: #7f1d1d; color: #f87171; }
+</style>
+</head>
+<body>
+
+<h1>shopping lists</h1>
+
+{% for shop_list in lists %}
+<h2>{{ shop_list.label }}</h2>
+{% if not shop_list.entries %}
+<div class="empty">nothing on this list</div>
+{% else %}
+{% for item in shop_list.entries %}
+<div class="item">
+  <span class="item-name">{{ item.name }}</span>
+  <div class="item-actions">
+    <form method="post" action="{{ url_prefix }}/own/{{ item.entity_id }}">
+      <button class="btn-own" type="submit">✓ I own this</button>
+    </form>
+    <form method="post" action="{{ url_prefix }}/remove/{{ shop_list.key }}/{{ item.entity_id }}">
+      <button class="btn-remove" type="submit">✕</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+</body>
+</html>
