@@ -9,6 +9,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import requests
 from flask import Flask, jsonify, render_template, request
 
 try:
@@ -70,6 +71,14 @@ except Exception as _e:
 
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
+# Franklin's web dashboard (todo_list/franklin/web.py) is an on-demand Flask
+# server living inside the app-todo process, not its own systemd service —
+# it's controlled via franklin/control.py, a tiny always-on sibling in that
+# same process, reachable locally since panel and todo_list run on the same VM.
+FRANKLIN_CONTROL_PORT = int(os.environ.get("FRANKLIN_CONTROL_PORT", 8766))
+FRANKLIN_WEB_PORT     = int(os.environ.get("WEB_PORT", 8765))
+FRANKLIN_CONTROL_URL  = f"http://localhost:{FRANKLIN_CONTROL_PORT}"
+
 SERVICES = [
     {"id": "arcade",    "label": "Arcade",              "path": "/arcade/"},
     {"id": "plants",    "label": "Plants Tracker",       "path": "/plants/"},
@@ -121,7 +130,37 @@ def index():
     for svc in SERVICES:
         status = service_status(svc["id"])
         services.append({**svc, "status": status})
-    return render_template("index.html", services=services, dashboards=DASHBOARDS)
+    return render_template(
+        "index.html", services=services, dashboards=DASHBOARDS,
+        franklin_web_port=FRANKLIN_WEB_PORT,
+    )
+
+
+@app.route("/api/franklin-web/status")
+def franklin_web_status():
+    try:
+        r = requests.get(f"{FRANKLIN_CONTROL_URL}/status", timeout=3)
+        return jsonify(r.json())
+    except Exception:
+        return jsonify({"running": False, "unreachable": True})
+
+
+@app.route("/api/franklin-web/start", methods=["POST"])
+def franklin_web_start():
+    try:
+        r = requests.post(f"{FRANKLIN_CONTROL_URL}/start", timeout=8)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"running": False, "error": str(e)}), 502
+
+
+@app.route("/api/franklin-web/stop", methods=["POST"])
+def franklin_web_stop():
+    try:
+        r = requests.post(f"{FRANKLIN_CONTROL_URL}/stop", timeout=8)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"running": False, "error": str(e)}), 502
 
 
 @app.route("/api/status")
