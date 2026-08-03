@@ -83,6 +83,18 @@
   {% endfor %}
 </div>
 
+<div class="card" id="card-franklin-web" style="margin-top:.75rem">
+  <div class="card-header">
+    <span class="label">Franklin Web Dashboard</span>
+    <span class="badge badge-inactive" id="badge-franklin-web">checking…</span>
+  </div>
+  <div class="btns">
+    <button class="btn-start" onclick="franklinWebAction('start')">Start</button>
+    <button class="btn-stop"  onclick="franklinWebAction('stop')">Stop</button>
+    <button class="btn-open"  onclick="window.open('http://'+window.location.hostname+':{{ franklin_web_port }}/','_blank')">Open</button>
+  </div>
+</div>
+
 <div class="monitor-section" style="margin-top:1rem">
   <h2>Dashboards</h2>
   <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem">
@@ -160,6 +172,44 @@ async function refreshAll() {
     document.getElementById('last-refresh').textContent =
       'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {}
+  franklinWebStatus();
+}
+
+function fwBadgeClass(running) {
+  return running ? 'badge-active' : 'badge-inactive';
+}
+
+async function franklinWebStatus() {
+  const badge = document.getElementById('badge-franklin-web');
+  try {
+    const r = await fetch('/api/franklin-web/status');
+    const d = await r.json();
+    if (d.unreachable) {
+      badge.textContent = 'app-todo unreachable';
+      badge.className = 'badge badge-failed';
+      return;
+    }
+    badge.textContent = d.running ? 'running' : 'stopped';
+    badge.className = 'badge ' + fwBadgeClass(d.running);
+  } catch (e) {
+    badge.textContent = 'error';
+    badge.className = 'badge badge-failed';
+  }
+}
+
+async function franklinWebAction(act) {
+  const badge = document.getElementById('badge-franklin-web');
+  badge.textContent = '...';
+  badge.className = 'badge badge-other';
+  try {
+    const r = await fetch('/api/franklin-web/' + act, {method: 'POST'});
+    const d = await r.json();
+    badge.textContent = d.running ? 'running' : 'stopped';
+    badge.className = 'badge ' + fwBadgeClass(d.running);
+  } catch (e) {
+    badge.textContent = 'error';
+    badge.className = 'badge badge-failed';
+  }
 }
 
 async function loadMonitor() {
