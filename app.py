@@ -97,6 +97,8 @@ SERVICES = [
     {"id": "wp-instinct", "label": "Willpower Instinct Bot", "path": None},
     {"id": "stm",         "label": "Semantic Task Manager",  "path": "/shopping/"},
     {"id": "cadonors",    "label": "CA Donor Research",      "path": None, "port": 5056},
+    {"id": "praxis-bot",  "label": "Praxis (Mindset/Flow/Grit) Bot", "path": None},
+    {"id": "praxis-web",  "label": "Praxis Django admin/site",       "path": None},
 ]
 
 # Sub-page dashboards served by the panel itself (no separate systemd service)
