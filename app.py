@@ -76,6 +76,13 @@ except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("fiData blueprint unavailable: %s", _e)
 
+try:
+    from positions_routes import positions_bp
+    app.register_blueprint(positions_bp, url_prefix="/positions")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("Positions blueprint unavailable: %s", _e)
+
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 # Franklin's web dashboard (todo_list/franklin/web.py) is an on-demand Flask
@@ -110,6 +117,7 @@ DASHBOARDS = [
     {"label": "Willpower Instinct", "path": "/wp/"},
     {"label": "Shopping Lists",    "path": "/shopping/"},
     {"label": "fiData Weekly Review", "path": "/fidata/"},
+    {"label": "fiData Positions", "path": "/positions/"},
 ]
 
 

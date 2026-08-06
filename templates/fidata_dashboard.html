@@ -32,12 +32,50 @@
   .synthesis-text { color: #cbd5e1; font-size: .84rem; line-height: 1.6;
                     white-space: pre-wrap; }
   .empty { color: #475569; font-size: .82rem; text-align: center; padding: 1rem 0; }
+  .job-row { display: flex; justify-content: space-between; align-items: center;
+             padding: .5rem 0; border-bottom: 1px solid #334155; gap: .75rem; }
+  .job-row:last-child { border-bottom: none; }
+  .job-name { flex: 1; min-width: 0; }
+  .job-next { color: #64748b; font-size: .74rem; }
+  .badge { font-size: .7rem; font-weight: 700; padding: .2rem .55rem;
+           border-radius: 99px; text-transform: uppercase; letter-spacing: .05em; }
+  .badge-active   { background: #166534; color: #4ade80; }
+  .badge-inactive { background: #3f3f46; color: #a1a1aa; }
+  .badge-failed   { background: #7f1d1d; color: #f87171; }
+  .badge-other    { background: #1c3050; color: #7dd3fc; }
+  .btns { display: flex; gap: .4rem; }
+  button { border: none; border-radius: 6px; padding: .35rem .7rem;
+           font-size: .78rem; font-weight: 600; cursor: pointer;
+           transition: opacity .15s; }
+  button:active { opacity: .7; }
+  .btn-run     { background: #1e3a5f; color: #7dd3fc; }
+  .btn-enable  { background: #166534; color: #4ade80; }
+  .btn-disable { background: #7f1d1d; color: #f87171; }
 </style>
 </head>
 <body>
 
 <h1>fiData — Weekly Review</h1>
 <p class="sub"><a href="/">← Panel</a></p>
+
+{# ── Jobs ── #}
+<div class="card">
+  <h2>Jobs</h2>
+  {% for job in jobs %}
+  <div class="job-row">
+    <div class="job-name">
+      <div class="value">{{ job.label }}</div>
+      <div class="job-next" id="next-{{ job.id }}">—</div>
+    </div>
+    <span class="badge badge-other" id="badge-{{ job.id }}">...</span>
+    <div class="btns">
+      <button class="btn-run" onclick="jobAction('{{ job.id }}', 'run_now')">Run Now</button>
+      <button class="btn-enable" onclick="jobAction('{{ job.id }}', 'enable')">Enable</button>
+      <button class="btn-disable" onclick="jobAction('{{ job.id }}', 'disable')">Disable</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
 
 {% if not week_date %}
 <div class="empty">No weekly review saved yet. Runs Sunday afternoons via fiData's
@@ -106,6 +144,59 @@
 {% endfor %}
 
 {% endif %}
+
+<script>
+function badgeClass(job) {
+  if (!job.enabled && job.last_result === null) return 'badge-inactive';
+  if (job.active === 'active') return 'badge-active';
+  if (job.last_result && job.last_result !== 'success') return 'badge-failed';
+  return job.enabled ? 'badge-active' : 'badge-inactive';
+}
+
+function badgeText(job) {
+  if (job.active === 'active') return 'running';
+  if (job.last_result && job.last_result !== 'success') return 'failed';
+  return job.enabled ? 'enabled' : 'disabled';
+}
+
+function applyJobStatus(id, job) {
+  const badge = document.getElementById('badge-' + id);
+  const next = document.getElementById('next-' + id);
+  if (badge) {
+    badge.textContent = badgeText(job);
+    badge.className = 'badge ' + badgeClass(job);
+  }
+  if (next) {
+    next.textContent = job.next_run ? ('Next: ' + job.next_run) : 'Timer not scheduled';
+  }
+}
+
+async function jobAction(id, action) {
+  const badge = document.getElementById('badge-' + id);
+  if (badge) { badge.textContent = '...'; badge.className = 'badge badge-other'; }
+  try {
+    const r = await fetch('{{ url_for("fidata.api_action") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({job: id, action: action})
+    });
+    const d = await r.json();
+    if (d.status) applyJobStatus(id, d.status);
+  } catch (e) {
+    if (badge) { badge.textContent = 'error'; badge.className = 'badge badge-failed'; }
+  }
+}
+
+async function refreshJobStatus() {
+  try {
+    const r = await fetch('{{ url_for("fidata.api_status") }}');
+    const d = await r.json();
+    for (const [id, job] of Object.entries(d)) applyJobStatus(id, job);
+  } catch (e) {}
+}
+
+refreshJobStatus();
+</script>
 
 </body>
 </html>

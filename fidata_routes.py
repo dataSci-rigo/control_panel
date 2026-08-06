@@ -10,21 +10,54 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import date, timedelta
 
-from flask import Blueprint, render_template
+from flask import Blueprint, jsonify, render_template, request
 
+# VM/GitHub repo directory is lowercase "fidata"; local dev checkout is "fiData"
 _FIDATA_DIR = next(
     (p for p in [
-        os.path.expanduser("~/apps/fiData"),
+        os.path.expanduser("~/apps/fidata"),
         os.path.expanduser("~/Documents/fiData"),
     ] if os.path.isdir(p)),
-    os.path.expanduser("~/apps/fiData"),
+    os.path.expanduser("~/apps/fidata"),
 )
 _APP_DATA = os.path.join(_FIDATA_DIR, "app_data")
 _DATA_DIR = os.path.join(_FIDATA_DIR, "data")
 
 fidata_bp = Blueprint("fidata", __name__, template_folder="templates")
+
+# Each job is a oneshot systemd service triggered by its own timer — there's
+# no single always-on "app-fidata" daemon, so these get their own
+# run-now/enable/disable controls instead of reusing panel's generic
+# start/stop/restart (which assumes one long-running service per app).
+JOBS = [
+    {"id": "pipeline", "label": "Pipeline (3x/day)", "unit": "fidata-pipeline"},
+    {"id": "daily-review", "label": "Daily Review", "unit": "fidata-daily-review"},
+    {"id": "weekly-review", "label": "Weekly Review", "unit": "fidata-weekly-review"},
+]
+_JOB_UNITS = {j["id"]: j["unit"] for j in JOBS}
+
+
+def _run(cmd: list[str]) -> tuple[str, int]:
+    result = subprocess.run(["sudo"] + cmd, capture_output=True, text=True, timeout=10)
+    return (result.stdout + result.stderr).strip(), result.returncode
+
+
+def _job_status(unit: str) -> dict:
+    enabled, _ = _run(["systemctl", "is-enabled", f"{unit}.timer"])
+    active, _ = _run(["systemctl", "is-active", f"{unit}.service"])
+    result, _ = _run(["systemctl", "show", f"{unit}.service", "--property=Result", "--value"])
+    last_run, _ = _run(["systemctl", "show", f"{unit}.service", "--property=ExecMainExitTimestamp", "--value"])
+    next_run, _ = _run(["systemctl", "show", f"{unit}.timer", "--property=NextElapseUSecRealtime", "--value"])
+    return {
+        "enabled": enabled.strip() == "enabled",
+        "active": active.strip(),
+        "last_result": result.strip() or None,
+        "last_run": last_run.strip() or None,
+        "next_run": next_run.strip() or None,
+    }
 
 
 def _load_json(path: str):
@@ -71,5 +104,32 @@ def dashboard(week_date: str | None = None):
         "fidata_dashboard.html",
         week_date=week_date, weeks=weeks, review=review,
         holdings=holdings, sectors=sectors.get("by_gics", []),
-        prev_week=prev_week, next_week=next_week,
+        prev_week=prev_week, next_week=next_week, jobs=JOBS,
     )
+
+
+@fidata_bp.route("/api/status")
+def api_status():
+    return jsonify({j["id"]: _job_status(j["unit"]) for j in JOBS})
+
+
+@fidata_bp.route("/api/action", methods=["POST"])
+def api_action():
+    data = request.get_json(force=True)
+    job_id = data.get("job", "")
+    action = data.get("action", "")
+
+    if job_id not in _JOB_UNITS:
+        return jsonify({"ok": False, "error": "Unknown job"}), 400
+    if action not in {"run_now", "enable", "disable"}:
+        return jsonify({"ok": False, "error": "Invalid action"}), 400
+
+    unit = _JOB_UNITS[job_id]
+    if action == "run_now":
+        _, code = _run(["systemctl", "start", f"{unit}.service"])
+    elif action == "enable":
+        _, code = _run(["systemctl", "enable", "--now", f"{unit}.timer"])
+    else:
+        _, code = _run(["systemctl", "disable", f"{unit}.timer"])
+
+    return jsonify({"ok": code == 0, "status": _job_status(unit)})
