@@ -33,6 +33,12 @@
   .gain-neg { color: #f87171; }
   .empty { color: #475569; font-size: .82rem; text-align: center; padding: 1rem 0; }
   img.plot { width: 100%; border-radius: 8px; border: 1px solid #334155; }
+  details { border-top: 1px solid #1e293b; padding-top: .5rem; }
+  details:first-of-type { border-top: none; padding-top: 0; }
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '▸ '; color: #64748b; }
+  details[open] summary::before { content: '▾ '; }
 </style>
 </head>
 <body>
@@ -74,6 +80,44 @@
   {% endif %}
 </div>
 
+{# ── Capital Tracking & Cash-Adjusted Performance ── #}
+<div class="card">
+  <h2>Capital Tracking &amp; ROIC</h2>
+  {% if extras.capital %}
+  {% set t = extras.capital.totals %}
+  <div class="grid-2">
+    <div>
+      <div class="card-row"><span class="label">Cost basis (current + closed)</span><span class="value">${{ '{:,.0f}'.format(t.cost_basis) }} + ${{ '{:,.0f}'.format(t.closed_cost_basis) }}</span></div>
+      <div class="card-row"><span class="label">Total capital invested</span><span class="value">${{ '{:,.0f}'.format(t.total_invested) }}</span></div>
+      <div class="card-row"><span class="label">Market value</span><span class="value">${{ '{:,.0f}'.format(t.market_value) }}</span></div>
+    </div>
+    <div>
+      <div class="card-row"><span class="label">Unrealized / Realized G/L</span><span class="value">${{ '{:,.0f}'.format(t.unrealized_gl) }} / ${{ '{:,.0f}'.format(t.realized_gl) }}</span></div>
+      <div class="card-row"><span class="label">Total P&amp;L</span><span class="{{ 'value gain-pos' if t.total_pl >= 0 else 'value gain-neg' }}">${{ '{:,.0f}'.format(t.total_pl) }}</span></div>
+      <div class="card-row"><span class="label">Return on Invested Capital</span><span class="{{ 'value gain-pos' if t.roic_pct >= 0 else 'value gain-neg' }}">{{ '%.2f'|format(t.roic_pct) }}%</span></div>
+    </div>
+  </div>
+  {% if extras.capital.annual_activity %}
+  <p class="label" style="margin-top:.5rem">Annual capital activity (excludes REINVEST):</p>
+  <div class="table-scroll">
+  <table><tr><th>Year</th><th>Bought</th><th>Sold</th><th>Net Deployed</th><th>Realized G/L</th></tr>
+    {% for a in extras.capital.annual_activity %}
+    <tr>
+      <td>{{ a.Year }}</td>
+      <td>${{ '{:,.0f}'.format(a.Bought or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Sold or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Net_Deployed or 0) }}</td>
+      <td>{% if a.Realized_GL is not none %}${{ '{:,.0f}'.format(a.Realized_GL) }}{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty">No capital-tracking data yet — run the pipeline at least once.</div>
+  {% endif %}
+</div>
+
 {# ── Plots ── #}
 <div class="grid-2">
   <div class="card">
@@ -85,6 +129,26 @@
     <h2>Correlation Heatmap</h2>
     <img class="plot" src="{{ url_for('positions.img', name='correlation_heatmap.png') }}" alt="Correlation heatmap"
          onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=empty>No plot yet.</div>')">
+  </div>
+</div>
+
+{# ── Risk Contributors / Max-Sharpe Allocation ── #}
+<div class="grid-2">
+  <div class="card">
+    <h2>Top Risk Contributors</h2>
+    {% if extras.risk_contributors %}
+    <table><tr><th>Symbol</th><th>Weight %</th><th>Risk Contrib %</th></tr>
+      {% for r in extras.risk_contributors %}<tr><td>{{ r.Symbol }}</td><td>{{ r.Weight_pct }}%</td><td>{{ r.RiskContrib_pct }}%</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No risk-contribution data yet.</div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Max-Sharpe Allocation (&gt;1%)</h2>
+    {% if extras.max_sharpe_weights %}
+    <table><tr><th>Symbol</th><th>Weight %</th></tr>
+      {% for w in extras.max_sharpe_weights %}<tr><td>{{ w.Symbol }}</td><td>{{ w.Weight_pct }}%</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No efficient-frontier data yet.</div>{% endif %}
   </div>
 </div>
 
@@ -100,25 +164,38 @@
       <th data-type="num">Quantity</th>
       <th data-type="num">Price</th>
       <th data-type="num">Market Value</th>
+      <th data-type="num">Days Held</th>
+      <th data-type="num">Return %</th>
       <th data-type="num">3m</th>
       <th data-type="num">1yr</th>
+      <th data-type="num">Ann Vol</th>
+      <th data-type="num">Sharpe 1yr</th>
+      <th data-type="num">Beta</th>
       <th data-type="str">Sector</th>
       <th data-type="str">Cap Tier</th>
       <th data-type="str">Vol Tier</th>
+      <th data-type="str">Cost Basis Source</th>
     </tr>
     </thead>
     <tbody>
     {% for h in holdings %}
+    {% set ret = ((h.Current_Price / h.Avg_Buy_Price - 1) * 100) if (h.Avg_Buy_Price and h.Current_Price) else none %}
     <tr>
       <td>{{ h.Symbol }}</td>
       <td>{{ '%.2f'|format(h.Quantity) if h.Quantity is not none else '—' }}</td>
       <td>${{ '%.2f'|format(h.Current_Price) if h.Current_Price is not none else '—' }}</td>
       <td>${{ '{:,.0f}'.format(h.Market_Value or 0) }}</td>
+      <td>{{ h.Days_Held if h.Days_Held is not none else '—' }}</td>
+      <td class="{{ 'gain-pos' if ret is not none and ret >= 0 else 'gain-neg' if ret is not none else '' }}">{{ '%.1f'|format(ret) + '%' if ret is not none else '—' }}</td>
       <td class="{{ 'gain-pos' if (h.Gain_3m or 0) >= 0 else 'gain-neg' }}">{{ h.Gain_3m if h.Gain_3m is not none else '—' }}{% if h.Gain_3m is not none %}%{% endif %}</td>
       <td class="{{ 'gain-pos' if (h.Gain_1yr or 0) >= 0 else 'gain-neg' }}">{{ h.Gain_1yr if h.Gain_1yr is not none else '—' }}{% if h.Gain_1yr is not none %}%{% endif %}</td>
+      <td>{{ '%.1f'|format(h.Ann_Vol * 100) + '%' if h.Ann_Vol is not none else '—' }}</td>
+      <td>{{ h.Sharpe_1yr if h.Sharpe_1yr is not none else '—' }}</td>
+      <td>{{ h.Beta if h.Beta is not none else '—' }}</td>
       <td class="label">{{ h.Sector or '—' }}</td>
       <td class="label">{{ h.Cap_Tier or '—' }}</td>
       <td class="label">{{ h.Vol_Tier or '—' }}</td>
+      <td class="label">{{ h.Cost_Basis_Source or '—' }}</td>
     </tr>
     {% endfor %}
     </tbody>
@@ -130,6 +207,28 @@
   {% else %}
   <div class="empty">No holdings data found.</div>
   {% endif %}
+</div>
+
+{# ── Closed Positions ── #}
+<div class="card">
+  <h2>Closed Positions — Realized Gain/Loss (2023+)</h2>
+  {% if extras.closed_positions %}
+  <div class="table-scroll">
+  <table><tr><th>Symbol</th><th>Lots</th><th>Total Qty</th><th>Total G/L</th><th>Avg G/L %</th><th>Avg Hold (days)</th><th>Last Sell</th></tr>
+    {% for c in extras.closed_positions %}
+    <tr>
+      <td>{{ c.Symbol }}</td>
+      <td>{{ c.Lots }}</td>
+      <td>{{ c.Total_Qty }}</td>
+      <td class="{{ 'gain-pos' if c.Total_GL >= 0 else 'gain-neg' }}">${{ '{:,.0f}'.format(c.Total_GL) }}</td>
+      <td class="{{ 'gain-pos' if c.Avg_GL_Pct >= 0 else 'gain-neg' }}">{{ c.Avg_GL_Pct }}%</td>
+      <td>{{ c.Avg_Hold }}</td>
+      <td class="label">{{ c.Last_Sell[:10] if c.Last_Sell else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% else %}<div class="empty">No closed positions since 2023.</div>{% endif %}
 </div>
 
 {# ── Sector / Cap / Vol breakdowns ── #}
@@ -181,6 +280,17 @@
   </div>
 </div>
 
+<div class="card">
+  <h2>Tightest Analyst Consensus</h2>
+  {% if targets.tightest %}
+  <div class="table-scroll">
+  <table><tr><th>Symbol</th><th>Price</th><th>Target</th><th>Upside</th><th>Spread</th><th># Analysts</th></tr>
+    {% for t in targets.tightest %}<tr><td>{{ t.Symbol }}</td><td>${{ '%.2f'|format(t.Current_Price) }}</td><td>${{ '%.2f'|format(t.Target_Median) }}</td><td class="{{ 'gain-pos' if t.Target_Upside >= 0 else 'gain-neg' }}">{{ t.Target_Upside }}%</td><td>{{ t.Target_Spread }}%</td><td>{{ t.Num_Analysts|int }}</td></tr>{% endfor %}
+  </table>
+  </div>
+  {% else %}<div class="empty">No target data.</div>{% endif %}
+</div>
+
 {# ── Flags ── #}
 <div class="grid-2">
   <div class="card">
@@ -199,6 +309,75 @@
     </table>
     {% else %}<div class="empty">No flag data.</div>{% endif %}
   </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>Highest Trailing P/E</h2>
+    {% if flags.high_trailing_pe %}
+    <table><tr><th>Symbol</th><th>Trailing P/E</th><th>Price</th></tr>
+      {% for f in flags.high_trailing_pe %}<tr><td>{{ f.Symbol }}</td><td>{{ f.Trailing_PE }}</td><td>${{ '%.2f'|format(f.Current_Price) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No flag data.</div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Highest Forward P/E</h2>
+    {% if flags.high_forward_pe %}
+    <table><tr><th>Symbol</th><th>Forward P/E</th><th>Price</th></tr>
+      {% for f in flags.high_forward_pe %}<tr><td>{{ f.Symbol }}</td><td>{{ f.Forward_PE }}</td><td>${{ '%.2f'|format(f.Current_Price) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No flag data.</div>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Lowest Forward P/E (Potentially Undervalued)</h2>
+  {% if flags.low_forward_pe %}
+  <div class="table-scroll">
+  <table><tr><th>Symbol</th><th>Forward P/E</th><th>Price</th><th>Target Mean</th></tr>
+    {% for f in flags.low_forward_pe %}<tr><td>{{ f.Symbol }}</td><td>{{ f.Forward_PE }}</td><td>${{ '%.2f'|format(f.Current_Price) }}</td><td>{% if f.Target_Mean %}${{ '%.2f'|format(f.Target_Mean) }}{% else %}—{% endif %}</td></tr>{% endfor %}
+  </table>
+  </div>
+  {% else %}<div class="empty">No flag data.</div>{% endif %}
+</div>
+
+{# ── Upcoming Earnings / Recommendations ── #}
+<div class="grid-2">
+  <div class="card">
+    <h2>Upcoming Earnings</h2>
+    {% if earnings %}
+    <table><tr><th>Symbol</th><th>Date</th><th>EPS Est</th></tr>
+      {% for e in earnings %}<tr><td>{{ e.Symbol }}</td><td class="label">{{ e.Next_Earnings[:10] if e.Next_Earnings else '—' }}</td><td>{{ e.EPS_Est if e.EPS_Est is not none else '—' }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No upcoming earnings found.</div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Analyst Recommendations</h2>
+    {% if recommendations %}
+    <div class="table-scroll">
+    <table><tr><th>Symbol</th><th>Strong Buy</th><th>Buy</th><th>Hold</th><th>Sell</th><th>Strong Sell</th><th>Consensus</th></tr>
+      {% for r in recommendations %}<tr><td>{{ r.Symbol }}</td><td>{{ r.Strong_Buy|int if r.Strong_Buy is not none else '—' }}</td><td>{{ r.Buy|int if r.Buy is not none else '—' }}</td><td>{{ r.Hold|int if r.Hold is not none else '—' }}</td><td>{{ r.Sell|int if r.Sell is not none else '—' }}</td><td>{{ r.Strong_Sell|int if r.Strong_Sell is not none else '—' }}</td><td class="label">{{ r.Consensus or '—' }}</td></tr>{% endfor %}
+    </table>
+    </div>
+    {% else %}<div class="empty">No recommendation data found.</div>{% endif %}
+  </div>
+</div>
+
+{# ── Per-Account Breakdown ── #}
+<div class="card">
+  <h2>Accounts ({{ accounts|length }})</h2>
+  {% if accounts %}
+  {% for acct in accounts %}
+  <details style="margin-bottom:.5rem">
+    <summary class="value" style="cursor:pointer">{{ acct.label }} <span class="label">(...{{ acct.id }}, {{ acct.rows|length }} positions)</span></summary>
+    <div class="table-scroll" style="margin-top:.5rem">
+    <table><tr><th>Symbol</th><th>Quantity</th><th>Price</th><th>Market Value</th></tr>
+      {% for r in acct.rows %}<tr><td>{{ r.Symbol }}</td><td>{{ '%.2f'|format(r.Quantity) if r.Quantity is not none else '—' }}</td><td>${{ '%.2f'|format(r.Current_Price) if r.Current_Price is not none else '—' }}</td><td>${{ '{:,.0f}'.format(r.Market_Value or 0) }}</td></tr>{% endfor %}
+    </table>
+    </div>
+  </details>
+  {% endfor %}
+  {% else %}<div class="empty">No account data found.</div>{% endif %}
 </div>
 
 <script>

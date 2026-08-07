@@ -16,6 +16,11 @@ import os
 
 from flask import Blueprint, abort, render_template, send_file
 
+try:
+    from dotenv import dotenv_values
+except ImportError:
+    dotenv_values = None
+
 # VM/GitHub repo directory is lowercase "fidata"; local dev checkout is "fiData"
 _FIDATA_DIR = next(
     (p for p in [
@@ -39,6 +44,15 @@ def _load_json(path: str):
         return json.load(f)
 
 
+def _account_names() -> dict:
+    """Symbol suffix -> friendly account name, from fiData's own .env
+    (ACC_<suffix>=<name>) — same mapping mystocks.ipynb's cell 0 uses."""
+    if dotenv_values is None:
+        return {}
+    env = dotenv_values(os.path.join(_FIDATA_DIR, ".env"))
+    return {k.replace("ACC_", ""): v for k, v in env.items() if k.startswith("ACC_")}
+
+
 @positions_bp.route("/")
 def dashboard():
     combined = _load_json(os.path.join(_APP_DATA, "combined.json")) or []
@@ -46,6 +60,10 @@ def dashboard():
     targets = _load_json(os.path.join(_APP_DATA, "targets.json")) or {}
     flags = _load_json(os.path.join(_APP_DATA, "flags.json")) or {}
     mpt = _load_json(os.path.join(_DATA_DIR, "mpt_summary.json")) or {}
+    extras = _load_json(os.path.join(_DATA_DIR, "portfolio_extras.json")) or {}
+    earnings = _load_json(os.path.join(_APP_DATA, "earnings.json")) or []
+    recommendations = _load_json(os.path.join(_APP_DATA, "recommendations.json")) or []
+    accounts = _load_json(os.path.join(_APP_DATA, "accounts.json")) or {}
 
     holdings = sorted(
         [r for r in combined if r.get("Symbol") != "cash"],
@@ -54,14 +72,25 @@ def dashboard():
     )
     cash_row = next((r for r in combined if r.get("Symbol") == "cash"), None)
 
+    acct_names = _account_names()
+    accounts_view = [
+        {
+            "id": acct_id,
+            "label": acct_names.get(acct_id, acct_id),
+            "rows": sorted(rows, key=lambda r: r.get("Market_Value") or 0, reverse=True),
+        }
+        for acct_id, rows in sorted(accounts.items())
+    ]
+
     return render_template(
         "positions_dashboard.html",
         holdings=holdings, cash=cash_row,
         by_gics=sectors.get("by_gics", []),
         by_cap=sectors.get("by_cap", []),
         by_vol=sectors.get("by_vol", []),
-        targets=targets, flags=flags, mpt=mpt,
-        has_plots=os.path.isdir(_DATA_DIR) or os.path.isdir(_FIDATA_DIR),
+        targets=targets, flags=flags, mpt=mpt, extras=extras,
+        earnings=earnings, recommendations=recommendations,
+        accounts=accounts_view,
     )
 
 
