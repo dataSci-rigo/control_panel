@@ -126,7 +126,13 @@ def api_action():
 
     unit = _JOB_UNITS[job_id]
     if action == "run_now":
-        _, code = _run(["systemctl", "start", f"{unit}.service"])
+        # --no-block: "systemctl start" on a oneshot otherwise waits
+        # synchronously for the unit to *finish* before returning, which
+        # blows past _run()'s 10s subprocess timeout for anything
+        # long-running (the pipeline run takes minutes) and 500s the
+        # request even though the job itself started fine. Poll
+        # /api/status afterward for progress instead.
+        _, code = _run(["systemctl", "--no-block", "start", f"{unit}.service"])
     elif action == "enable":
         _, code = _run(["systemctl", "enable", "--now", f"{unit}.timer"])
     else:
