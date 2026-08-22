@@ -106,7 +106,7 @@ SERVICES = [
     {"id": "cadonors",    "label": "CA Donor Research",      "path": None, "port": 5056, "subpath": "/v2"},
     {"id": "praxis-bot",  "label": "Praxis (Mindset/Flow/Grit) Bot", "path": None},
     {"id": "praxis-web",  "label": "Praxis Django admin/site",       "path": None, "port": 8007},
-    {"id": "praxis-demo", "label": "Praxis Guest Demo (no login needed, own demo DB)", "path": None, "port": 8008},
+    {"id": "praxis-demo", "label": "Praxis Guest Demo (login hint on page, own demo DB)", "path": None, "port": 8008},
     {"id": "hab7bot-api", "label": "Compass API (7 Habits planner)", "path": None, "port": 8010},
     {"id": "hab7bot-bot", "label": "Compass Telegram Bot",           "path": None},
     {"id": "hab7bot-web", "label": "Compass Web",                    "path": None, "port": 3000},
