@@ -95,6 +95,24 @@
   </div>
 </div>
 
+<div class="card" id="card-programs" style="margin-top:.75rem">
+  <div class="card-header">
+    <span class="label">Programs (app-todo)</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:.5rem">
+    {% for prog in programs %}
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:.9rem">{{ prog.label }}</span>
+      <span style="display:flex;align-items:center;gap:.5rem">
+        <span class="badge badge-inactive" id="badge-prog-{{ prog.id }}">…</span>
+        <button class="btn-start" onclick="programAction('{{ prog.id }}','on')">On</button>
+        <button class="btn-stop"  onclick="programAction('{{ prog.id }}','off')">Off</button>
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="monitor-section" style="margin-top:1rem">
   <h2>Dashboards</h2>
   <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem">
@@ -173,6 +191,7 @@ async function refreshAll() {
       'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {}
   franklinWebStatus();
+  programsStatus();
 }
 
 function fwBadgeClass(running) {
@@ -191,6 +210,41 @@ async function franklinWebStatus() {
     }
     badge.textContent = d.running ? 'running' : 'stopped';
     badge.className = 'badge ' + fwBadgeClass(d.running);
+  } catch (e) {
+    badge.textContent = 'error';
+    badge.className = 'badge badge-failed';
+  }
+}
+
+async function programsStatus() {
+  try {
+    const r = await fetch('/api/programs');
+    const d = await r.json();
+    for (const [id, enabled] of Object.entries(d)) {
+      const badge = document.getElementById('badge-prog-' + id);
+      if (!badge) continue;
+      badge.textContent = d.unreachable ? '?' : (enabled ? 'on' : 'off');
+      badge.className = 'badge ' + (enabled ? 'badge-active' : 'badge-inactive');
+    }
+    if (d.unreachable) {
+      document.querySelectorAll('[id^="badge-prog-"]').forEach(b => {
+        b.textContent = 'app-todo unreachable';
+        b.className = 'badge badge-failed';
+      });
+    }
+  } catch (e) {}
+}
+
+async function programAction(id, act) {
+  const badge = document.getElementById('badge-prog-' + id);
+  badge.textContent = '...';
+  badge.className = 'badge badge-other';
+  try {
+    const r = await fetch('/api/programs/' + id + '/' + act, {method: 'POST'});
+    const d = await r.json();
+    const enabled = d[id];
+    badge.textContent = enabled ? 'on' : 'off';
+    badge.className = 'badge ' + (enabled ? 'badge-active' : 'badge-inactive');
   } catch (e) {
     badge.textContent = 'error';
     badge.className = 'badge badge-failed';

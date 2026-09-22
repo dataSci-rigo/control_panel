@@ -83,6 +83,13 @@ except Exception as _e:
     import logging
     logging.getLogger(__name__).warning("Positions blueprint unavailable: %s", _e)
 
+try:
+    from stm_routes import stm_bp
+    app.register_blueprint(stm_bp, url_prefix="/stm")
+except Exception as _e:
+    import logging
+    logging.getLogger(__name__).warning("STM blueprint unavailable: %s", _e)
+
 PORT = int(os.environ.get("CONTROL_PANEL_PORT", 9000))
 
 # Franklin's web dashboard (todo_list/franklin/web.py) is an on-demand Flask
@@ -93,15 +100,27 @@ FRANKLIN_CONTROL_PORT = int(os.environ.get("FRANKLIN_CONTROL_PORT", 8766))
 FRANKLIN_WEB_PORT     = int(os.environ.get("WEB_PORT", 8765))
 FRANKLIN_CONTROL_URL  = f"http://localhost:{FRANKLIN_CONTROL_PORT}"
 
+# Per-program on/off toggles inside the app-todo process (run_bots.py's
+# control_server.py) — pinger / accountability / franklin / wpi / adhd.
+RUNBOTS_CONTROL_PORT = int(os.environ.get("RUNBOTS_CONTROL_PORT", 8767))
+RUNBOTS_CONTROL_URL  = f"http://localhost:{RUNBOTS_CONTROL_PORT}"
+
+PROGRAMS = [
+    {"id": "pinger",         "label": "Pinger"},
+    {"id": "accountability", "label": "Accountability"},
+    {"id": "franklin",       "label": "Franklin"},
+    {"id": "wpi",            "label": "Willpower"},
+    {"id": "adhd",           "label": "ADHD"},
+]
+
 SERVICES = [
     {"id": "arcade",    "label": "Arcade",              "path": "/arcade/"},
     {"id": "plants",    "label": "Plants Tracker",       "path": "/plants/"},
-    {"id": "todo",      "label": "Accountability Bot + Pinger + Franklin", "path": None},
+    {"id": "todo",      "label": "Todo bots (pinger/accountability/franklin/wpi/adhd)", "path": None},
     {"id": "braindump", "label": "Brain-Dump Bot",       "path": None},
     {"id": "food",      "label": "Hub Bot (food/workout/meds)", "path": None},
     {"id": "ai-prep",   "label": "AI Prep (Discord)",    "path": None},
     {"id": "learn-bot", "label": "Learn Bot (Telegram)", "path": None},
-    {"id": "wp-instinct", "label": "Willpower Instinct Bot", "path": None},
     {"id": "stm",         "label": "Semantic Task Manager",  "path": "/shopping/"},
     {"id": "cadonors",    "label": "CA Donor Research",      "path": None, "port": 5056, "subpath": "/v2"},
     {"id": "praxis-bot",  "label": "Praxis (Mindset/Flow/Grit) Bot", "path": None},
@@ -122,6 +141,7 @@ DASHBOARDS = [
     {"label": "Shopping Lists",    "path": "/shopping/"},
     {"label": "fiData Weekly Review", "path": "/fidata/"},
     {"label": "fiData Positions", "path": "/positions/"},
+    {"label": "STM Bulk Import", "path": "/stm/"},
 ]
 
 
@@ -154,8 +174,28 @@ def index():
         services.append({**svc, "status": status})
     return render_template(
         "index.html", services=services, dashboards=DASHBOARDS,
-        franklin_web_port=FRANKLIN_WEB_PORT,
+        franklin_web_port=FRANKLIN_WEB_PORT, programs=PROGRAMS,
     )
+
+
+@app.route("/api/programs")
+def programs_status():
+    try:
+        r = requests.get(f"{RUNBOTS_CONTROL_URL}/bots", timeout=3)
+        return jsonify(r.json())
+    except Exception:
+        return jsonify({"unreachable": True})
+
+
+@app.route("/api/programs/<name>/<action>", methods=["POST"])
+def programs_action(name: str, action: str):
+    if action not in {"on", "off"} or name not in {p["id"] for p in PROGRAMS}:
+        return jsonify({"ok": False, "error": "invalid program or action"}), 400
+    try:
+        r = requests.post(f"{RUNBOTS_CONTROL_URL}/bots/{name}/{action}", timeout=5)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route("/api/franklin-web/status")

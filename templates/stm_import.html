@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>STM bulk import</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: -apple-system, sans-serif;
+         min-height: 100vh; padding: 1rem; max-width: 900px; margin: 0 auto; }
+  h1  { color: #38bdf8; font-size: 1.25rem; margin-bottom: 1rem; letter-spacing: .05em; }
+  h2  { color: #7dd3fc; font-size: 1rem; margin-bottom: .6rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1rem;
+          border: 1px solid #334155; margin-bottom: 1rem; }
+  textarea { width: 100%; min-height: 220px; background: #0f172a; color: #e2e8f0;
+             border: 1px solid #334155; border-radius: 6px; padding: .6rem;
+             font-family: monospace; font-size: .85rem; }
+  input[type=file] { color: #94a3b8; margin-bottom: .6rem; }
+  button { border: none; border-radius: 6px; padding: .5rem 1rem; font-size: .9rem;
+           font-weight: 600; cursor: pointer; background: #166534; color: #4ade80; }
+  button:active { opacity: .7; }
+  .summary { background: #1c3050; border: 1px solid #38bdf8; border-radius: 8px;
+             padding: .8rem; margin-bottom: 1rem; }
+  .proj { margin-bottom: .8rem; }
+  .proj b { color: #7dd3fc; }
+  ul { margin: .3rem 0 0 1.2rem; }
+  li.done { color: #64748b; text-decoration: line-through; }
+  a { color: #38bdf8; }
+  .hint { color: #94a3b8; font-size: .8rem; margin-top: .5rem; }
+</style>
+</head>
+<body>
+<h1>STM bulk import</h1>
+<p style="margin-bottom:1rem"><a href="/">&larr; panel</a></p>
+
+{% if summary %}<div class="summary">{{ summary }}</div>{% endif %}
+
+<div class="card">
+  <h2>1 &middot; Scrape JSON &rarr; claude.ai prompt</h2>
+  <form method="post" action="/stm/prompt" enctype="multipart/form-data">
+    <input type="file" name="scrape" accept=".json">
+    <button type="submit">Generate grouping prompt</button>
+  </form>
+  <p class="hint">Upload a script_data tasks_*.json. You'll get a .txt to paste into
+  claude.ai. (Keep-notes JSONs go to the Telegram bot — they need AI filtering.)</p>
+</div>
+
+<div class="card">
+  <h2>2 &middot; Paste claude.ai's grouped reply</h2>
+  <form method="post" action="/stm/import">
+    <textarea name="grouped" placeholder="PROJECT: Home &amp; DIY&#10;- [ ] fix the gate&#10;- [x] buy caulk">{{ raw }}</textarea>
+    {% if preview %}
+      <input type="hidden" name="confirm" value="1">
+      <div style="margin:.8rem 0">
+        {% for p in preview %}
+          <div class="proj"><b>{{ p.name }}</b> ({{ p['items']|length }} items)
+            <ul>
+              {% for it in p['items'] %}
+                <li class="{{ 'done' if it.completed else '' }}">{{ it.title }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit">Confirm import</button>
+    {% else %}
+      <div style="margin-top:.6rem"><button type="submit">Preview</button></div>
+    {% endif %}
+  </form>
+</div>
+</body>
+</html>
