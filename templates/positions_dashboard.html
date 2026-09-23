@@ -29,6 +29,13 @@
        white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
   .table-scroll { overflow-x: auto; }
+  .scroll-y { max-height: 24rem; overflow-y: auto; }
+  .scroll-y th { position: sticky; top: 0; background: #1e293b; z-index: 1; }
+  .card > h2 { cursor: pointer; user-select: none; }
+  .card > h2::before { content: '▾ '; color: #64748b; }
+  .card.folded > h2 { margin-bottom: 0; }
+  .card.folded > h2::before { content: '▸ '; }
+  .card.folded > *:not(h2) { display: none; }
   .gain-pos { color: #4ade80; }
   .gain-neg { color: #f87171; }
   .empty { color: #475569; font-size: .82rem; text-align: center; padding: 1rem 0; }
@@ -113,6 +120,46 @@
   </table>
   </div>
   {% endif %}
+
+  {# ── Cash flows: dividends / interest / fees / money in-out ── #}
+  {% if extras.cash_flows %}
+  {% set cf = extras.cash_flows.totals %}
+  <p class="label" style="margin-top:.75rem">Cash flows (non-trade — dividends, interest, fees, transfers):</p>
+  <div class="grid-2" style="margin-top:.35rem">
+    <div>
+      <div class="card-row"><span class="label">Dividends received</span><span class="value gain-pos">${{ '{:,.0f}'.format(cf.dividends) }}</span></div>
+      <div class="card-row"><span class="label">Interest</span><span class="value">${{ '{:,.0f}'.format(cf.interest) }}</span></div>
+      <div class="card-row"><span class="label">Fees</span><span class="value gain-neg">${{ '{:,.0f}'.format(cf.fees) }}</span></div>
+    </div>
+    <div>
+      <div class="card-row"><span class="label">Money in (deposits/transfers)</span><span class="value">${{ '{:,.0f}'.format(cf.money_in) }}</span></div>
+      <div class="card-row"><span class="label">Money out (withdrawals)</span><span class="value">${{ '{:,.0f}'.format(cf.money_out) }}</span></div>
+      <div class="card-row"><span class="label">Net non-trade cash</span><span class="{{ 'value gain-pos' if cf.net >= 0 else 'value gain-neg' }}">${{ '{:,.0f}'.format(cf.net) }}</span></div>
+    </div>
+  </div>
+  <div class="table-scroll">
+  <table><tr><th>Year</th><th>Dividends</th><th>Interest</th><th>Fees</th><th>Money In</th><th>Money Out</th><th>Net</th></tr>
+    {% for a in extras.cash_flows.annual %}
+    <tr>
+      <td>{{ a.Year }}</td>
+      <td>${{ '{:,.0f}'.format(a.Dividends or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Interest or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Fees or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Money_In or 0) }}</td>
+      <td>${{ '{:,.0f}'.format(a.Money_Out or 0) }}</td>
+      <td class="{{ 'gain-pos' if (a.Net or 0) >= 0 else 'gain-neg' }}">${{ '{:,.0f}'.format(a.Net or 0) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+  {% if not cf.money_in and not cf.money_out %}
+  <p class="label" style="margin-top:.35rem">⚠ No deposits/withdrawals in the current exports — the Fidelity/Schwab
+    history downloads were trades-only. Re-download with all transaction types included to fill this in.</p>
+  {% endif %}
+  {% else %}
+  <p class="label" style="margin-top:.75rem">No cash-flow rows (dividends, transfers) found in the history exports yet —
+    re-download broker history with all transaction types included, then let the pipeline run.</p>
+  {% endif %}
   {% else %}
   <div class="empty">No capital-tracking data yet — run the pipeline at least once.</div>
   {% endif %}
@@ -156,7 +203,7 @@
 <div class="card">
   <h2>Holdings ({{ holdings|length }} positions{% if cash %} + cash{% endif %})</h2>
   {% if holdings %}
-  <div class="table-scroll">
+  <div class="table-scroll scroll-y">
   <table id="holdings-table">
     <thead>
     <tr>
@@ -213,7 +260,7 @@
 <div class="card">
   <h2>Closed Positions — Realized Gain/Loss (2023+)</h2>
   {% if extras.closed_positions %}
-  <div class="table-scroll">
+  <div class="table-scroll scroll-y">
   <table><tr><th>Symbol</th><th>Lots</th><th>Total Qty</th><th>Total G/L</th><th>Avg G/L %</th><th>Avg Hold (days)</th><th>Last Sell</th></tr>
     {% for c in extras.closed_positions %}
     <tr>
@@ -346,15 +393,17 @@
   <div class="card">
     <h2>Upcoming Earnings</h2>
     {% if earnings %}
+    <div class="scroll-y">
     <table><tr><th>Symbol</th><th>Date</th><th>EPS Est</th></tr>
       {% for e in earnings %}<tr><td>{{ e.Symbol }}</td><td class="label">{{ e.Next_Earnings[:10] if e.Next_Earnings else '—' }}</td><td>{{ e.EPS_Est if e.EPS_Est is not none else '—' }}</td></tr>{% endfor %}
     </table>
+    </div>
     {% else %}<div class="empty">No upcoming earnings found.</div>{% endif %}
   </div>
   <div class="card">
     <h2>Analyst Recommendations</h2>
     {% if recommendations %}
-    <div class="table-scroll">
+    <div class="table-scroll scroll-y">
     <table><tr><th>Symbol</th><th>Strong Buy</th><th>Buy</th><th>Hold</th><th>Sell</th><th>Strong Sell</th><th>Consensus</th></tr>
       {% for r in recommendations %}<tr><td>{{ r.Symbol }}</td><td>{{ r.Strong_Buy|int if r.Strong_Buy is not none else '—' }}</td><td>{{ r.Buy|int if r.Buy is not none else '—' }}</td><td>{{ r.Hold|int if r.Hold is not none else '—' }}</td><td>{{ r.Sell|int if r.Sell is not none else '—' }}</td><td>{{ r.Strong_Sell|int if r.Strong_Sell is not none else '—' }}</td><td class="label">{{ r.Consensus or '—' }}</td></tr>{% endfor %}
     </table>
@@ -402,6 +451,19 @@ document.querySelectorAll('#holdings-table th').forEach((th, idx) => {
     });
     rows.forEach(r => tbody.appendChild(r));
     asc = !asc;
+  });
+});
+
+// Fold/unfold any card by clicking its heading, remembered across visits.
+// The localStorage key strips counts ("Holdings (122 positions + cash)") so
+// a changed count doesn't reset the fold state.
+document.querySelectorAll('.card > h2').forEach(h2 => {
+  const card = h2.parentElement;
+  const key = 'posfold:' + h2.textContent.replace(/[\d,()+]/g, '').trim();
+  try { if (localStorage.getItem(key) === '1') card.classList.add('folded'); } catch (e) {}
+  h2.addEventListener('click', () => {
+    const folded = card.classList.toggle('folded');
+    try { localStorage.setItem(key, folded ? '1' : '0'); } catch (e) {}
   });
 });
 </script>
