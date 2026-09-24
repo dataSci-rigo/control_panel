@@ -87,6 +87,43 @@
   {% endif %}
 </div>
 
+{# ── News ── #}
+{% set pos_news = news.get('position_stories') or [] %}
+{% set mkt_news = news.get('market_stories') or [] %}
+<div class="card">
+  <h2>News ({{ pos_news|length + mkt_news|length }})</h2>
+  {% if pos_news or mkt_news %}
+  <div class="scroll-y">
+    {% if pos_news %}
+    <p class="label" style="margin-bottom:.35rem">Your positions — ranked by volatility × position size</p>
+    {% for s in pos_news %}
+    <div style="padding:.4rem 0; border-bottom:1px solid #1e293b">
+      <span class="value" style="color:#7dd3fc">{{ s.symbol }}</span>
+      <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>
+      <div class="label">{{ s.publisher }} · {{ s.published_at[:16]|replace('T',' ') }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if mkt_news %}
+    <p class="label" style="margin:.75rem 0 .35rem">Market</p>
+    {% for s in mkt_news %}
+    <div style="padding:.4rem 0; border-bottom:1px solid #1e293b">
+      <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>
+      {% if s.why %}<div class="label">{{ s.why }}</div>{% endif %}
+      <div class="label">{{ s.publisher }} · {{ s.published_at[:16]|replace('T',' ') }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  <p class="label" style="margin-top:.5rem">
+    {% if news.get('generated_at') %}generated {{ news.generated_at[:19]|replace('T',' ') }}{% endif %}
+    {% if news.get('curated') is false %} · market stories ranked by recency (AI curation unavailable){% endif %}
+  </p>
+  {% else %}
+  <div class="empty">No news feed yet — run the pipeline at least once.</div>
+  {% endif %}
+</div>
+
 {# ── Capital Tracking & Cash-Adjusted Performance ── #}
 <div class="card">
   <h2>Capital Tracking &amp; ROIC</h2>

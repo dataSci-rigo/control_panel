@@ -64,6 +64,7 @@ def dashboard():
     earnings = _load_json(os.path.join(_APP_DATA, "earnings.json")) or []
     recommendations = _load_json(os.path.join(_APP_DATA, "recommendations.json")) or []
     accounts = _load_json(os.path.join(_APP_DATA, "accounts.json")) or {}
+    news = _load_json(os.path.join(_DATA_DIR, "news_feed.json")) or {}
 
     holdings = sorted(
         [r for r in combined if r.get("Symbol") != "cash"],
@@ -90,7 +91,7 @@ def dashboard():
         by_vol=sectors.get("by_vol", []),
         targets=targets, flags=flags, mpt=mpt, extras=extras,
         earnings=earnings, recommendations=recommendations,
-        accounts=accounts_view,
+        accounts=accounts_view, news=news,
     )
 
 
